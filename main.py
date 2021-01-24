@@ -13,6 +13,7 @@ import pathlib
 from k_nearest_neigbours import KnnDtw
 from sklearn.metrics import classification_report, confusion_matrix
 import re
+from supervised_learning import run_supervised_learning
 
 
 def load_data_file(path: str):
@@ -101,10 +102,10 @@ def k_nearest_heighbour(raw_signal_data: panda.Series, truth_values: panda.Serie
     #labels = {1: 'WALKING', 2: 'WALKING UPSTAIRS', 3: 'WALKING DOWNSTAIRS',
     #          4: 'SITTING', 5: 'STANDING', 6: 'LAYING'}
 
-    x_test = raw_signal_data['x_test'].to_numpy()
+    # x_test = raw_signal_data['x_test'].to_numpy()
     x_train =raw_signal_data.to_numpy()
 
-    y_test = raw_signal_data['y_test'].to_numpy()
+    # y_test = raw_signal_data['y_test'].to_numpy()
     y_train = truth_values.to_numpy()
 
     m = KnnDtw(n_neighbors=1, max_warping_window=10)
@@ -198,6 +199,8 @@ def best_fit_distribution(data, bins=200, ax=None):
 if __name__ == '__main__':
     pathlib.Path('graphs/fft').mkdir(parents=True, exist_ok=True)
     pathlib.Path('data/converted').mkdir(parents=True, exist_ok=True)
+
+    run_supervised_learning()
 
     convert_to_pickles = True
     number_of_houses = 6
