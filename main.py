@@ -8,6 +8,7 @@ from os import walk
 from typing import Dict
 import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq
+import scipy.stats as stats
 import pathlib
 from k_nearest_neigbours import KnnDtw
 from sklearn.metrics import classification_report, confusion_matrix
@@ -95,25 +96,31 @@ def make_fft_plot(
     plt.close()
 
 
-def k_nearest_heighbour(raw_signal_data: Dict, labels: dict):
+def k_nearest_heighbour(raw_signal_data: panda.Series, truth_values: panda.Series):
     # Mapping table for classes
     #labels = {1: 'WALKING', 2: 'WALKING UPSTAIRS', 3: 'WALKING DOWNSTAIRS',
     #          4: 'SITTING', 5: 'STANDING', 6: 'LAYING'}
 
     x_test = raw_signal_data['x_test'].to_numpy()
-    x_train = raw_signal_data['x_train'].to_numpy()
+    x_train =raw_signal_data.to_numpy()
 
     y_test = raw_signal_data['y_test'].to_numpy()
-    y_train = raw_signal_data['y_train'].to_numpy()
+    y_train = truth_values.to_numpy()
 
     m = KnnDtw(n_neighbors=1, max_warping_window=10)
     m.fit(x_train, y_train)
+
+    return m
+
+
+def report_fit_on_nearest_neighbours(fitted_neighbours: KnnDtw, x_test: panda.Series):
     # X test data -> raw_signal_data['total_acc_z_test']
-    label, proba = m.predict(x_test[::10])
+    label, proba = fitted_neighbours.predict(x_test[::10])
 
     # Y test data
     classification_report(label, y_test,
-                          target_names=[l for l in labels.values()])
+                          target_names=[label for label in labels.values()]
+                          )
 
     conf_mat = confusion_matrix(label, y_test)
 
@@ -132,7 +139,57 @@ def k_nearest_heighbour(raw_signal_data: Dict, labels: dict):
     _ = plt.xticks(range(6), [l for l in labels.values()], rotation=90)
     _ = plt.yticks(range(6), [l for l in labels.values()])
 
-    return m
+
+def fit_distrubtion_to_label():
+    plt.rcParams['figure.figsize'] = (16.0, 12.0)
+    plt.style.use('ggplot')
+
+
+# Create models from data
+def best_fit_distribution(data, bins=200, ax=None):
+    """Model data by finding best fit distribution to data"""
+    # Get histogram of original data
+    y, x = np.histogram(data, bins=bins, density=True)
+    x = (x + np.roll(x, -1))[:-1] / 2.0
+
+    size = 30000
+    # x = scipy.arange(size)
+    # y = scipy.int_(scipy.round_(stats.vonmises.rvs(5, size=size) * 47))
+    # h = plt.hist(y, bins=range(48))
+
+    dist_names = ['gamma', 'beta', 'rayleigh', 'norm', 'pareto']
+
+    for dist_name in dist_names:
+        dist = getattr(stats, dist_name)
+        param = dist.fit(y)
+        pdf_fitted = dist.pdf(x, *param[:-2], loc=param[-2], scale=param[-1]) * size
+    #     plt.plot(pdf_fitted, label=dist_name)
+    #     plt.xlim(0, 47)
+    # plt.legend(loc='upper right')
+    # plt.show()
+
+    # Distributions to check
+    DISTRIBUTIONS = [
+        stats.alpha, stats.anglit, stats.arcsine, stats.beta, stats.betaprime, stats.bradford, stats.burr, stats.cauchy, stats.chi, stats.chi2,
+        stats.cosine,
+        stats.dgamma, stats.dweibull, stats.erlang, stats.expon, stats.exponnorm, stats.exponweib, stats.exponpow, stats.f, stats.fatiguelife,
+        stats.fisk,
+        stats.foldcauchy, stats.foldnorm, stats.frechet_r, stats.frechet_l, stats.genlogistic, stats.genpareto, stats.gennorm,
+        stats.genexpon,
+        stats.genextreme, stats.gausshyper, stats.gamma, stats.gengamma, stats.genhalflogistic, stats.gilbrat, stats.gompertz,
+        stats.gumbel_r,
+        stats.gumbel_l, stats.halfcauchy, stats.halflogistic, stats.halfnorm, stats.halfgennorm, stats.hypsecant, stats.invgamma,
+        stats.invgauss,
+        stats.invweibull, stats.johnsonsb, stats.johnsonsu, stats.ksone, stats.kstwobign, stats.laplace, stats.levy, stats.levy_l,
+        stats.levy_stable,
+        stats.logistic, stats.loggamma, stats.loglaplace, stats.lognorm, stats.lomax, stats.maxwell, stats.mielke, stats.nakagami, stats.ncx2,
+        stats.ncf,
+        stats.nct, stats.norm, stats.pareto, stats.pearson3, stats.powerlaw, stats.powerlognorm, stats.powernorm, stats.rdist,
+        stats.reciprocal,
+        stats.rayleigh, stats.rice, stats.recipinvgauss, stats.semicircular, stats.t, stats.triang, stats.truncexpon, stats.truncnorm,
+        stats.tukeylambda,
+        stats.uniform, stats.vonmises, stats.vonmises_line, stats.wald, stats.weibull_min, stats.weibull_max, stats.wrapcauchy
+    ]
 
 
 # ---------------------------
@@ -161,4 +218,3 @@ if __name__ == '__main__':
         original_signal = panda.read_pickle('data/converted/house_' + str(house_number) + '/original_signal.pkl')
         k_nearest_result[house_number] = k_nearest_heighbour(original_signal)
         fft_result[house_number] = run_fft(original_signal, 10, 0.5)
-
