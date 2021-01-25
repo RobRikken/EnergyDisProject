@@ -14,6 +14,7 @@ from k_nearest_neigbours import KnnDtw
 from sklearn.metrics import classification_report, confusion_matrix
 import re
 from supervised_learning import run_supervised_learning
+from multiprocessing import Pool, Process, cpu_count, Queue
 
 
 def load_data_file(path: str):
@@ -200,9 +201,10 @@ if __name__ == '__main__':
     pathlib.Path('graphs/fft').mkdir(parents=True, exist_ok=True)
     pathlib.Path('data/converted').mkdir(parents=True, exist_ok=True)
 
-    run_supervised_learning()
+    # -1 to have on thread on the cpu free for other usage. Remove for max performance.
+    number_of_processes = cpu_count() - 1
 
-    convert_to_pickles = True
+    convert_to_pickles = False
     number_of_houses = 6
 
     if convert_to_pickles:
@@ -219,5 +221,14 @@ if __name__ == '__main__':
     fft_result = []
     for house_number in range(1, number_of_houses):
         original_signal = panda.read_pickle('data/converted/house_' + str(house_number) + '/original_signal.pkl')
-        k_nearest_result[house_number] = k_nearest_heighbour(original_signal)
+        k_nearest_result[house_number] = k_nearest_heighbour(original_signal, )
         fft_result[house_number] = run_fft(original_signal, 10, 0.5)
+
+    processes = []
+    queue = Queue
+    with Pool(processes=number_of_processes) as pool:
+        for appliance_data in appliances:
+
+
+
+
