@@ -133,3 +133,4 @@ dmypy.json
 
 # Folder fo generated data files
 /data/converted
+.DS_Store
