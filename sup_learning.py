@@ -26,10 +26,12 @@ import warnings
 warnings.filterwarnings("ignore")
 import glob
 from sklearn.tree import DecisionTreeRegressor
+import pathlib
 
 #-------------------------------------
 # function def
 #-------------------------------------
+
 
 def read_label():
     label = {}
@@ -41,6 +43,7 @@ def read_label():
                 splitted_line = line.split(' ')
                 label[i][int(splitted_line[0])] = splitted_line[1].strip() + '_' + splitted_line[0]
     return label
+
 
 def read_merge_data(house):
     path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/house_{}/'.format(house)
@@ -144,7 +147,8 @@ def plot_losses(losses, min_samples_split):
     plt.yticks(fontsize=20 )
     plt.rcParams["figure.figsize"] = [24,15]
     plt.tight_layout()
-    
+
+
 def plot_each_app(df, dates, predict, y_test, title, look_back = 0):
     num_date = len(dates)
     fig, axes = plt.subplots(num_date,1,figsize=(24, num_date*5) )
@@ -172,6 +176,7 @@ def build_fc_model(layers):
     fc_model.summary()
     return fc_model
 
+
 def plot_losses_fc_model(train_loss, val_loss):
     plt.rcParams["figure.figsize"] = [24,10]
     plt.title('Mean squared error of train and val set on house 1')
@@ -187,149 +192,150 @@ def plot_losses_fc_model(train_loss, val_loss):
 #-------------------------------------
 
 # get labels for houses 1 and 2
-labels = read_label()
-for i in range(1,3):
-    print('House {}: '.format(i), labels[i], '\n')
+if __name__ == '__main__':
+    labels = read_label()
+    for i in range(1,3):
+        print('House {}: '.format(i), labels[i], '\n')
 
-# merge data from channels into one df
-df = {}
-for i in range(1,3): # for house 1 and 2
-    df[i] = read_merge_data(i)
-    
-# inspect df's by looking at shape and tail     
-for i in range(1,3):
-    print('House {} data has shape: '.format(i), df[i].shape)
-    display(df[i].tail(3))
+    # merge data from channels into one df
+    df = {}
+    for i in range(1,3): # for house 1 and 2
+        df[i] = read_merge_data(i)
 
-
-# extract dates from timestamps
-dates = {}
-for i in range(1,3): # for house 1 and house 2
-    dates[i] = [str(time)[:10] for time in df[i].index.values]
-    dates[i] = sorted(list(set(dates[i])))
-    print('House {0} data contain {1} days from {2} to {3}.'.format(i,len(dates[i]),dates[i][0], dates[i][-1]))
-    print(dates[i], '\n')
-    
-
-###------------
-# Plot first/second day data of house 1 and 2
+    # inspect df's by looking at shape and tail
+    for i in range(1,3):
+        print('House {} data has shape: '.format(i), df[i].shape)
+        display(df[i].tail(3))
 
 
-for i in range(1,3):
-    plot_df(df[i].loc[:dates[i][1]], 'First 2 day data of house {}'.format(i))
-
-    
-###------------
-### PLOT TOTAL ENERGY CONSUMPTION
-### Plot total energy consumption of each appliance from two houses
-fig, axes = plt.subplots(1,2,figsize=(24, 10))
-plt.suptitle('Total enery consumption of each appliance', fontsize = 30)
-# for each appliance take the sum of the values and sort 
-cons1 = df[1][df[1].columns.values[2:]].sum().sort_values(ascending=False)
-app1 = cons1.index
-y_pos1 = np.arange(len(app1))
-axes[0].bar(y_pos1, cons1.values,  alpha=0.6) 
-plt.sca(axes[0])
-plt.xticks(y_pos1, app1, rotation = 45)
-plt.title('House 1')
-
-cons2 = df[2][df[2].columns.values[2:]].sum().sort_values(ascending=False)
-app2 = cons2.index
-y_pos2 = np.arange(len(app2))
-axes[1].bar(y_pos2, cons2.values, alpha=0.6)
-plt.sca(axes[1])
-plt.xticks(y_pos2, app2, rotation = 45)
-plt.title('House 2')
-
-###------------
-### DECISION TREE
-### PREDICT REFRIGERATOR ONLY
-## train and test on house 1 – decision tree
-# Separate house 1 data into train, validation and test data
-df1_train = df[1].loc[:dates[1][10]] # first 10 days for training
-df1_val = df[1].loc[dates[1][11]:dates[1][16]] # day 11-16 for validation
-df1_test = df[1].loc[dates[1][17]:] # day 17- end (day 23) for testing
-print('df_train.shape: ', df1_train.shape)
-print('df_val.shape: ', df1_val.shape)
-print('df_test.shape: ', df1_test.shape)
-
-# Using mains_1, mains_2 to PREDICT REFRIGERATOR
-# for train, validation, and test set: 
-# extract main1 and main2 for as x-variable
-# extract refrigerator signal as y-variable (to be predicted)
-X_train1 = df1_train[['mains_1','mains_2']].values 
-y_train1 = df1_train['refrigerator_5'].values
-X_val1 = df1_val[['mains_1','mains_2']].values
-y_val1 = df1_val['refrigerator_5'].values
-X_test1 = df1_test[['mains_1','mains_2']].values
-y_test1 = df1_test['refrigerator_5'].values
-print(X_train1.shape, y_train1.shape, X_val1.shape, y_val1.shape, X_test1.shape, y_test1.shape)
+    # extract dates from timestamps
+    dates = {}
+    for i in range(1,3): # for house 1 and house 2
+        dates[i] = [str(time)[:10] for time in df[i].index.values]
+        dates[i] = sorted(list(set(dates[i])))
+        print('House {0} data contain {1} days from {2} to {3}.'.format(i,len(dates[i]),dates[i][0], dates[i][-1]))
+        print(dates[i], '\n')
 
 
-# Using decision tree regression
-# use validation data to turn the min_samples_split parameter
-# the min_samples_split parameter determines the minimum number of samples required to split an internal node
-# a node will be split until impurity is 0, or if minimum number of samples is reached
-# default: 2 (resulting in 1 sample per leaf)
-
-# test different values for min_samples_split
-min_samples_split=np.arange(2, 400, 10) # values range from 2 to 392, with an interval of 10
-tree_clfs_1, tree_losses_1 = tree_reg(X_train1, y_train1, X_val1, y_val1, min_samples_split)
-plot_losses(tree_losses_1, min_samples_split) # inspect mse visually
-
-### Choose the best model and predict refrigerator consumption on the test set
-ind = np.argmin(tree_losses_1) # model with smallest loss
-tree_clf_1 = tree_clfs_1[ind] # get tree with smallest loss
-# use this tree to predict y using x values from test set
-y_test_predict_1 = tree_clf_1.predict(X_test1) 
-mse_tree_1 = mse_loss(y_test_predict_1, y_test1) # derive mse
-mae_tree_1 = mae_loss(y_test_predict_1, y_test1) # derive mae
-print('Mean square error on test set: ', mse_tree_1)
-print('Mean absolute error on the test set: ', mae_tree_1)
+    ###------------
+    # Plot first/second day data of house 1 and 2
 
 
-# Plot real and predict refrigerator consumption on six days of test data
-plot_each_app(df1_test, dates[1][17:], y_test_predict_1, y_test1, 'Real and predict Refrigerator on 6 test day of house 1')
+    for i in range(1,3):
+        plot_df(df[i].loc[:dates[i][1]], 'First 2 day data of house {}'.format(i))
 
 
-## use decision tree model to predict refrigerator consumption on house 2
-X_2 = df[2][['mains_2','mains_1']].values # get x-values (main)
-y_2 = df[2]['refrigerator_9'].values # get y-values (refrigerator) – to be predicted
-print(X_2.shape, y_2.shape)
+    ###------------
+    ### PLOT TOTAL ENERGY CONSUMPTION
+    ### Plot total energy consumption of each appliance from two houses
+    fig, axes = plt.subplots(1,2,figsize=(24, 10))
+    plt.suptitle('Total enery consumption of each appliance', fontsize = 30)
+    # for each appliance take the sum of the values and sort
+    cons1 = df[1][df[1].columns.values[2:]].sum().sort_values(ascending=False)
+    app1 = cons1.index
+    y_pos1 = np.arange(len(app1))
+    axes[0].bar(y_pos1, cons1.values,  alpha=0.6)
+    plt.sca(axes[0])
+    plt.xticks(y_pos1, app1, rotation = 45)
+    plt.title('House 1')
 
-y_predict_2 = tree_clf_1.predict(X_2) # predict using decision tree model and x-values of house 2
-# derive mse and mae 
-mse_tree_2 = mse_loss(y_predict_2, y_2) 
-mae_tree_2 = mae_loss(y_predict_2, y_2)
-print('Mean square error on test set: ', mse_tree_2)
-print('Mean absolute error on the test set: ', mae_tree_2)
+    cons2 = df[2][df[2].columns.values[2:]].sum().sort_values(ascending=False)
+    app2 = cons2.index
+    y_pos2 = np.arange(len(app2))
+    axes[1].bar(y_pos2, cons2.values, alpha=0.6)
+    plt.sca(axes[1])
+    plt.xticks(y_pos2, app2, rotation = 45)
+    plt.title('House 2')
 
-# plot predicted on all days of house 2
-plot_each_app(df[2], dates[2], y_predict_2, y_2, 'Decision tree for refrigerator: train on house 1, predict on house 2')
+    ###------------
+    ### DECISION TREE
+    ### PREDICT REFRIGERATOR ONLY
+    ## train and test on house 1 – decision tree
+    # Separate house 1 data into train, validation and test data
+    df1_train = df[1].loc[:dates[1][10]] # first 10 days for training
+    df1_val = df[1].loc[dates[1][11]:dates[1][16]] # day 11-16 for validation
+    df1_test = df[1].loc[dates[1][17]:] # day 17- end (day 23) for testing
+    print('df_train.shape: ', df1_train.shape)
+    print('df_val.shape: ', df1_val.shape)
+    print('df_test.shape: ', df1_test.shape)
 
-###------------
-### DECISION TREE
-### PREDICT OTHER APPLIANCES
+    # Using mains_1, mains_2 to PREDICT REFRIGERATOR
+    # for train, validation, and test set:
+    # extract main1 and main2 for as x-variable
+    # extract refrigerator signal as y-variable (to be predicted)
+    X_train1 = df1_train[['mains_1','mains_2']].values
+    y_train1 = df1_train['refrigerator_5'].values
+    X_val1 = df1_val[['mains_1','mains_2']].values
+    y_val1 = df1_val['refrigerator_5'].values
+    X_test1 = df1_test[['mains_1','mains_2']].values
+    y_test1 = df1_test['refrigerator_5'].values
+    print(X_train1.shape, y_train1.shape, X_val1.shape, y_val1.shape, X_test1.shape, y_test1.shape)
 
-# List of other appliances in house 1:
-appliances = list(df[1].columns.values[2:])
-appliances.pop(2)
-print(appliances)
 
-mul_pred = tree_reg_mult_apps()
+    # Using decision tree regression
+    # use validation data to turn the min_samples_split parameter
+    # the min_samples_split parameter determines the minimum number of samples required to split an internal node
+    # a node will be split until impurity is 0, or if minimum number of samples is reached
+    # default: 2 (resulting in 1 sample per leaf)
 
-mul_mse_tree, mul_mae_tree = error_mul_app(mul_pred)
+    # test different values for min_samples_split
+    min_samples_split=np.arange(2, 400, 10) # values range from 2 to 392, with an interval of 10
+    tree_clfs_1, tree_losses_1 = tree_reg(X_train1, y_train1, X_val1, y_val1, min_samples_split)
+    plot_losses(tree_losses_1, min_samples_split) # inspect mse visually
 
-for app in appliances:
-    m = np.mean(df1_test[app].values)
-    print('mean of {0}: {1:.2f} - mse: {2:.2f} - mae: {3:.2f}'.format(app, m ,mul_mse_tree[app], mul_mae_tree[app]))
+    ### Choose the best model and predict refrigerator consumption on the test set
+    ind = np.argmin(tree_losses_1) # model with smallest loss
+    tree_clf_1 = tree_clfs_1[ind] # get tree with smallest loss
+    # use this tree to predict y using x values from test set
+    y_test_predict_1 = tree_clf_1.predict(X_test1)
+    mse_tree_1 = mse_loss(y_test_predict_1, y_test1) # derive mse
+    mae_tree_1 = mae_loss(y_test_predict_1, y_test1) # derive mae
+    print('Mean square error on test set: ', mse_tree_1)
+    print('Mean absolute error on the test set: ', mae_tree_1)
 
-## for each of the appliances
-## plot real and predicted values for the 6 days of the test-dataset 
 
-#for app in appliances:
-#    plot_each_app(df1_test, dates[1][17:], mul_pred[app], df1_test[app].values, 
-#                  '{} - real and predict on 6 day test data of house 1'.format(app))
+    # Plot real and predict refrigerator consumption on six days of test data
+    plot_each_app(df1_test, dates[1][17:], y_test_predict_1, y_test1, 'Real and predict Refrigerator on 6 test day of house 1')
+
+
+    ## use decision tree model to predict refrigerator consumption on house 2
+    X_2 = df[2][['mains_2','mains_1']].values # get x-values (main)
+    y_2 = df[2]['refrigerator_9'].values # get y-values (refrigerator) – to be predicted
+    print(X_2.shape, y_2.shape)
+
+    y_predict_2 = tree_clf_1.predict(X_2) # predict using decision tree model and x-values of house 2
+    # derive mse and mae
+    mse_tree_2 = mse_loss(y_predict_2, y_2)
+    mae_tree_2 = mae_loss(y_predict_2, y_2)
+    print('Mean square error on test set: ', mse_tree_2)
+    print('Mean absolute error on the test set: ', mae_tree_2)
+
+    # plot predicted on all days of house 2
+    plot_each_app(df[2], dates[2], y_predict_2, y_2, 'Decision tree for refrigerator: train on house 1, predict on house 2')
+
+    ###------------
+    ### DECISION TREE
+    ### PREDICT OTHER APPLIANCES
+
+    # List of other appliances in house 1:
+    appliances = list(df[1].columns.values[2:])
+    appliances.pop(2)
+    print(appliances)
+
+    mul_pred = tree_reg_mult_apps()
+
+    mul_mse_tree, mul_mae_tree = error_mul_app(mul_pred)
+
+    for app in appliances:
+        m = np.mean(df1_test[app].values)
+        print('mean of {0}: {1:.2f} - mse: {2:.2f} - mae: {3:.2f}'.format(app, m ,mul_mse_tree[app], mul_mae_tree[app]))
+
+    ## for each of the appliances
+    ## plot real and predicted values for the 6 days of the test-dataset
+
+    #for app in appliances:
+    #    plot_each_app(df1_test, dates[1][17:], mul_pred[app], df1_test[app].values,
+    #                  '{} - real and predict on 6 day test data of house 1'.format(app))
 
 
 ###-----------------------------------------------------
@@ -343,49 +349,51 @@ from keras.models import load_model
 from keras.optimizers import Adam
 from keras.regularizers import l2
 
-fc_model_1 = build_fc_model([2, 256, 512, 1024, 1])
 
-adam = Adam(lr = 1e-5)
-fc_model_1.compile(loss='mean_squared_error', optimizer=adam)
-start = time.time()
-checkpointer = ModelCheckpoint(filepath="./fc_refrig_h1_2.hdf5", verbose=0, save_best_only=True)
-hist_fc_1 = fc_model_1.fit(X_train1, y_train1,
-                    batch_size=512, verbose=1, epochs=200,
-                    validation_split=0.33, callbacks=[checkpointer])
-print('Finish trainning. Time: ', time.time() - start)
+def fully_connected_network(X_train, Y_train, folder_name: str, appliance_name: str):
+    path = 'models/fully_connected_network/' + folder_name
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    fc_model = build_fc_model([2, 256, 512, 1024, 1])
 
-fc_model_1 = load_model('fc_refrig_h1_2.hdf5')
-pred_fc_1 = fc_model_1.predict(X_test1).reshape(-1)
-mse_loss_fc_1 = mse_loss(pred_fc_1, y_test1)
-mae_loss_fc_1 = mae_loss(pred_fc_1, y_test1)
-print('Mean square error on test set: ', mse_loss_fc_1)
-print('Mean absolute error on the test set: ', mae_loss_fc_1)
+    adam = Adam(lr = 1e-5)
+    fc_model.compile(loss='mean_squared_error', optimizer=adam)
 
-# extract losses
-train_loss = hist_fc_1.history['loss']
-val_loss = hist_fc_1.history['val_loss']
-# plot losses
-plot_losses_fc_model(train_loss, val_loss)
+    checkpointer = ModelCheckpoint(
+        filepath=path + "/" + appliance_name + "_weights.{epoch:02d}-{val_loss:.2f}.hdf5",
+        verbose=0,
+        save_best_only=True
+    )
 
-# plot predicted vs. actual signal
-plot_each_app(df1_test, dates[1][17:], pred_fc_1, y_test1, 
-              'FC model: real and predict Refrigerator on 6 test day of house 1')
-
-## use model to predict house 2
-y_pred_fc_2 = fc_model_1.predict(X_2).reshape(-1)
-mse_fc_2 = mse_loss(y_pred_fc_2, y_2)
-mae_fc_2 = mae_loss(y_pred_fc_2, y_2)
-print('Mean square error on test set: ', mse_fc_2)
-print('Mean absolute error on the test set: ', mae_fc_2)
-
-plot_each_app(df[2], dates[2], y_pred_fc_2, y_2, 'FC model for refrigerator: train on house 1, predict on house 2')
+    return fc_model.fit(X_train, Y_train,
+                        batch_size=512, verbose=1, epochs=200,
+                        validation_split=0.33, callbacks=[checkpointer])
 
 
+if __name__ == '__main__':
+    model_fc = fully_connected_network()
+    pred_fc_1 = model_fc.predict(X_test1).reshape(-1)
 
+    # print('Finish trainning. Time: ', time.time() - start)
+    mse_loss_fc_1 = mse_loss(pred_fc_1, y_test1)
+    mae_loss_fc_1 = mae_loss(pred_fc_1, y_test1)
+    print('Mean square error on test set: ', mse_loss_fc_1)
+    print('Mean absolute error on the test set: ', mae_loss_fc_1)
 
+    # extract losses
+    train_loss = model_fc.history['loss']
+    val_loss = model_fc.history['val_loss']
+    # plot losses
+    plot_losses_fc_model(train_loss, val_loss)
 
+    # plot predicted vs. actual signal
+    plot_each_app(df1_test, dates[1][17:], pred_fc_1, y_test1,
+                  'FC model: real and predict Refrigerator on 6 test day of house 1')
 
+    ## use model to predict house 2
+    y_pred_fc_2 = model_fc.predict(X_2).reshape(-1)
+    mse_fc_2 = mse_loss(y_pred_fc_2, y_2)
+    mae_fc_2 = mae_loss(y_pred_fc_2, y_2)
+    print('Mean square error on test set: ', mse_fc_2)
+    print('Mean absolute error on the test set: ', mae_fc_2)
 
-
-
-
+    plot_each_app(df[2], dates[2], y_pred_fc_2, y_2, 'FC model for refrigerator: train on house 1, predict on house 2')

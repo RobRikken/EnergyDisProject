@@ -44,18 +44,18 @@ def read_merge_data(house: int, labels):
     return df
 
 
-def decision_tree_regression()
+#def decision_tree_regression():
     # Separate house 1 data into train, validation and test data
-    df1_train = df[1].ix[:dates[1][10]]
-    df1_val = df[1].ix[dates[1][11]:dates[1][16]]
-    df1_test = df[1].ix[dates[1][17]:]
-
-    X_train1 = df1_train[['mains_1', 'mains_2']].values
-    y_train1 = df1_train['refrigerator_5'].values
-    X_val1 = df1_val[['mains_1', 'mains_2']].values
-    y_val1 = df1_val['refrigerator_5'].values
-    X_test1 = df1_test[['mains_1', 'mains_2']].values
-    y_test1 = df1_test['refrigerator_5'].values
+    # df1_train = df[1].ix[:dates[1][10]]
+    # df1_val = df[1].ix[dates[1][11]:dates[1][16]]
+    # df1_test = df[1].ix[dates[1][17]:]
+    #
+    # X_train1 = df1_train[['mains_1', 'mains_2']].values
+    # y_train1 = df1_train['refrigerator_5'].values
+    # X_val1 = df1_val[['mains_1', 'mains_2']].values
+    # y_val1 = df1_val['refrigerator_5'].values
+    # X_test1 = df1_test[['mains_1', 'mains_2']].values
+    # y_test1 = df1_test['refrigerator_5'].values
 
 def mse_loss(y_predict, y):
     return np.mean(np.square(y_predict - y))
@@ -111,19 +111,19 @@ def run_supervised_learning():
         df[i] = read_merge_data(i, labels)
 
     # Choose the best model and predict refrigerator consumption on the test set
-    ind = np.argmin(tree_losses_1)
-    tree_clf_1 = tree_clfs_1[ind]
-    y_test_predict_1 = tree_clf_1.predict(X_test1)
-    mse_tree_1 = mse_loss(y_test_predict_1, y_test1)
-    mae_tree_1 = mae_loss(y_test_predict_1, y_test1)
+    # ind = np.argmin(tree_losses_1)
+    # tree_clf_1 = tree_clfs_1[ind]
+    # y_test_predict_1 = tree_clf_1.predict(X_test1)
+    # mse_tree_1 = mse_loss(y_test_predict_1, y_test1)
+    # mae_tree_1 = mae_loss(y_test_predict_1, y_test1)
 
     # Using decision tree model we have just trained on house 1 to predict refrigerator consumtion on house 2
-    X_2 = df[2][['mains_2','mains_1']].values
-    y_2 = df[2]['refrigerator_9'].values
-    y_predict_2 = tree_clf_1.predict(X_2)
-    mse_tree_2 = mse_loss(y_predict_2, y_2)
-    mae_tree_2 = mae_loss(y_predict_2, y_2)
-
-    mul_pred = tree_reg_mult_apps()
-
-    mul_mse_tree, mul_mae_tree = error_mul_app(mul_pred)
+    # X_2 = df[2][['mains_2','mains_1']].values
+    # y_2 = df[2]['refrigerator_9'].values
+    # y_predict_2 = tree_clf_1.predict(X_2)
+    # mse_tree_2 = mse_loss(y_predict_2, y_2)
+    # mae_tree_2 = mae_loss(y_predict_2, y_2)
+    #
+    # mul_pred = tree_reg_mult_apps()
+    #
+    # mul_mse_tree, mul_mae_tree = error_mul_app(mul_pred)

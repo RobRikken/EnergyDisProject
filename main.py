@@ -15,6 +15,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 import re
 from supervised_learning import run_supervised_learning
 from multiprocessing import Pool, Process, cpu_count, Queue
+from sup_learning import fully_connected_network
 
 
 def load_data_file(path: str):
@@ -39,11 +40,20 @@ def save_house_files(house: str) -> None:
 
 
 def load_house_files() -> Dict:
-    (_, _, file_names) = next(walk('data/converted/'))
+    (_, house_names, _) = next(walk('data/converted/'))
 
     files = {}
-    for file_name in file_names:
-        files[file_name] = panda.read_pickle('data/converted/' + file_name)
+    for house_name in house_names:
+        files[house_name] = {}
+        labels_file = load_data_file('data/low_freq/' + house_name + '/labels.dat')
+        labels = panda.Series(labels_file[1])
+        labels.index = labels_file[0]
+        (_, _, file_names) = next(walk('data/converted/' + house_name + '/'))
+        for file_name in file_names:
+            appliance_number = file_name.split("_")[1]
+            appliance_number = int(re.sub("\.pkl$", '', appliance_number))
+            appliance_name = labels[appliance_number] + '__' + str(appliance_number)
+            files[house_name][appliance_name] = panda.read_pickle('data/converted/' + house_name + '/' + file_name)
 
     return files
 
@@ -100,11 +110,11 @@ def make_fft_plot(
 
 def k_nearest_heighbour(raw_signal_data: panda.Series, truth_values: panda.Series):
     # Mapping table for classes
-    #labels = {1: 'WALKING', 2: 'WALKING UPSTAIRS', 3: 'WALKING DOWNSTAIRS',
+    # labels = {1: 'WALKING', 2: 'WALKING UPSTAIRS', 3: 'WALKING DOWNSTAIRS',
     #          4: 'SITTING', 5: 'STANDING', 6: 'LAYING'}
 
     # x_test = raw_signal_data['x_test'].to_numpy()
-    x_train =raw_signal_data.to_numpy()
+    x_train = raw_signal_data.to_numpy()
 
     # y_test = raw_signal_data['y_test'].to_numpy()
     y_train = truth_values.to_numpy()
@@ -172,26 +182,52 @@ def best_fit_distribution(data, bins=200, ax=None):
 
     # Distributions to check
     DISTRIBUTIONS = [
-        stats.alpha, stats.anglit, stats.arcsine, stats.beta, stats.betaprime, stats.bradford, stats.burr, stats.cauchy, stats.chi, stats.chi2,
+        stats.alpha, stats.anglit, stats.arcsine, stats.beta, stats.betaprime, stats.bradford, stats.burr, stats.cauchy,
+        stats.chi, stats.chi2,
         stats.cosine,
-        stats.dgamma, stats.dweibull, stats.erlang, stats.expon, stats.exponnorm, stats.exponweib, stats.exponpow, stats.f, stats.fatiguelife,
+        stats.dgamma, stats.dweibull, stats.erlang, stats.expon, stats.exponnorm, stats.exponweib, stats.exponpow,
+        stats.f, stats.fatiguelife,
         stats.fisk,
-        stats.foldcauchy, stats.foldnorm, stats.frechet_r, stats.frechet_l, stats.genlogistic, stats.genpareto, stats.gennorm,
+        stats.foldcauchy, stats.foldnorm, stats.frechet_r, stats.frechet_l, stats.genlogistic, stats.genpareto,
+        stats.gennorm,
         stats.genexpon,
-        stats.genextreme, stats.gausshyper, stats.gamma, stats.gengamma, stats.genhalflogistic, stats.gilbrat, stats.gompertz,
+        stats.genextreme, stats.gausshyper, stats.gamma, stats.gengamma, stats.genhalflogistic, stats.gilbrat,
+        stats.gompertz,
         stats.gumbel_r,
-        stats.gumbel_l, stats.halfcauchy, stats.halflogistic, stats.halfnorm, stats.halfgennorm, stats.hypsecant, stats.invgamma,
+        stats.gumbel_l, stats.halfcauchy, stats.halflogistic, stats.halfnorm, stats.halfgennorm, stats.hypsecant,
+        stats.invgamma,
         stats.invgauss,
-        stats.invweibull, stats.johnsonsb, stats.johnsonsu, stats.ksone, stats.kstwobign, stats.laplace, stats.levy, stats.levy_l,
+        stats.invweibull, stats.johnsonsb, stats.johnsonsu, stats.ksone, stats.kstwobign, stats.laplace, stats.levy,
+        stats.levy_l,
         stats.levy_stable,
-        stats.logistic, stats.loggamma, stats.loglaplace, stats.lognorm, stats.lomax, stats.maxwell, stats.mielke, stats.nakagami, stats.ncx2,
+        stats.logistic, stats.loggamma, stats.loglaplace, stats.lognorm, stats.lomax, stats.maxwell, stats.mielke,
+        stats.nakagami, stats.ncx2,
         stats.ncf,
-        stats.nct, stats.norm, stats.pareto, stats.pearson3, stats.powerlaw, stats.powerlognorm, stats.powernorm, stats.rdist,
+        stats.nct, stats.norm, stats.pareto, stats.pearson3, stats.powerlaw, stats.powerlognorm, stats.powernorm,
+        stats.rdist,
         stats.reciprocal,
-        stats.rayleigh, stats.rice, stats.recipinvgauss, stats.semicircular, stats.t, stats.triang, stats.truncexpon, stats.truncnorm,
+        stats.rayleigh, stats.rice, stats.recipinvgauss, stats.semicircular, stats.t, stats.triang, stats.truncexpon,
+        stats.truncnorm,
         stats.tukeylambda,
-        stats.uniform, stats.vonmises, stats.vonmises_line, stats.wald, stats.weibull_min, stats.weibull_max, stats.wrapcauchy
+        stats.uniform, stats.vonmises, stats.vonmises_line, stats.wald, stats.weibull_min, stats.weibull_max,
+        stats.wrapcauchy
     ]
+
+
+def execute_network_learning_queue(the_queue: Queue):
+    while True:
+        if the_queue.empty():
+            break
+
+        training_data = the_queue.get_nowait()
+        fully_connected_network(
+            training_data['X_train'],
+            training_data['Y_train'],
+            training_data['house_name'],
+            training_data['appliance_name'],
+        )
+
+    return True
 
 
 # ---------------------------
@@ -200,9 +236,10 @@ def best_fit_distribution(data, bins=200, ax=None):
 if __name__ == '__main__':
     pathlib.Path('graphs/fft').mkdir(parents=True, exist_ok=True)
     pathlib.Path('data/converted').mkdir(parents=True, exist_ok=True)
+    pathlib.Path('models/fully_connected_network').mkdir(parents=True, exist_ok=True)
 
     # -1 to have on thread on the cpu free for other usage. Remove for max performance.
-    number_of_processes = cpu_count() - 1
+    number_of_processes = cpu_count() - 4
 
     convert_to_pickles = False
     number_of_houses = 6
@@ -213,22 +250,41 @@ if __name__ == '__main__':
             pathlib.Path('data/converted/house_' + str(house_number)).mkdir(parents=True, exist_ok=True)
             save_house_files('house_' + str(house_number))
 
-        for house_number in range(1, number_of_houses):
-            original_signal = build_original_signal('house_' + str(house_number))
-            original_signal.to_pickle('data/converted/house_' + str(house_number) + '/original_signal.pkl')
-
     k_nearest_result = []
     fft_result = []
-    for house_number in range(1, number_of_houses):
-        original_signal = panda.read_pickle('data/converted/house_' + str(house_number) + '/original_signal.pkl')
-        k_nearest_result[house_number] = k_nearest_heighbour(original_signal, )
-        fft_result[house_number] = run_fft(original_signal, 10, 0.5)
+    # for house_number in range(1, number_of_houses):
+    #     original_signal = panda.read_pickle('data/converted/house_' + str(house_number) + '/original_signal.pkl')
+    #     k_nearest_result[house_number] = k_nearest_heighbour(original_signal, )
+    #     fft_result[house_number] = run_fft(original_signal, 10, 0.5)
 
+    house_files = load_house_files()
     processes = []
-    queue = Queue
-    with Pool(processes=number_of_processes) as pool:
-        for appliance_data in appliances:
+    queue = Queue()
+    # Fill the queue
+    for house in house_files:
+        house_files[house]['mains__1'].name = 'mains_1'
+        house_files[house]['mains__2'].name = 'mains_2'
+        combined_mains = panda.concat([house_files[house]['mains__1'], house_files[house]['mains__2']], axis=1)
+        for appliance in house_files[house]:
+            if 'mains' in appliance:
+                continue
 
+            # X_train should be mains, Y_train is applian
+            appliance_series = house_files[house][appliance]
+            selected_mains = panda.merge(appliance_series, combined_mains, how='inner', left_index=True, right_index=True)
+            queue.put({
+                'X_train': selected_mains[['mains_1', 'mains_2']].to_numpy(),
+                'Y_train': selected_mains['power'].to_numpy(),
+                'house_name': house,
+                'appliance_name': appliance
+            })
 
+    for process_number in range(number_of_processes):
+        process = Process(target=execute_network_learning_queue, args=(queue,))
+        processes.append(process)
+        process.start()
+
+    for process in processes:
+        process.join()
 
 
