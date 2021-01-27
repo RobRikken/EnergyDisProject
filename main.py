@@ -16,6 +16,7 @@ import re
 from supervised_learning import run_supervised_learning
 from multiprocessing import Pool, Process, cpu_count, Queue
 from sup_learning import fully_connected_network
+import pickle
 
 
 def load_data_file(path: str):
@@ -108,21 +109,16 @@ def make_fft_plot(
     plt.close()
 
 
-def k_nearest_heighbour(raw_signal_data: panda.Series, truth_values: panda.Series):
-    # Mapping table for classes
-    # labels = {1: 'WALKING', 2: 'WALKING UPSTAIRS', 3: 'WALKING DOWNSTAIRS',
-    #          4: 'SITTING', 5: 'STANDING', 6: 'LAYING'}
+def k_nearest_neighbour(raw_signal_data: np.array, truth_values: np.array, house_name, appliance_name):
 
-    # x_test = raw_signal_data['x_test'].to_numpy()
-    x_train = raw_signal_data.to_numpy()
+    model = KnnDtw(n_neighbors=5, max_warping_window=10000)
+    model.fit(raw_signal_data, truth_values)
 
-    # y_test = raw_signal_data['y_test'].to_numpy()
-    y_train = truth_values.to_numpy()
+    pickle_file = open('models/k_nearest_neighbour/' + house_name + '_' + appliance_name + '.pkl', 'wb')
+    pickle.dump(model, pickle_file)
+    pickle_file.close()
 
-    m = KnnDtw(n_neighbors=1, max_warping_window=10)
-    m.fit(x_train, y_train)
-
-    return m
+    return model
 
 
 def report_fit_on_nearest_neighbours(fitted_neighbours: KnnDtw, x_test: panda.Series):
@@ -152,7 +148,7 @@ def report_fit_on_nearest_neighbours(fitted_neighbours: KnnDtw, x_test: panda.Se
     _ = plt.yticks(range(6), [l for l in labels.values()])
 
 
-def fit_distrubtion_to_label():
+def fit_distribution_to_label():
     plt.rcParams['figure.figsize'] = (16.0, 12.0)
     plt.style.use('ggplot')
 
@@ -230,6 +226,21 @@ def execute_network_learning_queue(the_queue: Queue):
     return True
 
 
+def execute_k_nearest_neighbour(the_queue: Queue):
+    while True:
+        if the_queue.empty():
+            break
+
+        training_data = the_queue.get_nowait()
+        k_nearest_neighbour(
+            training_data['X_train'],
+            training_data['Y_train'],
+            training_data['house_name'],
+            training_data['appliance_name']
+        )
+
+    return True
+
 # ---------------------------
 # main
 # ---------------------------
@@ -237,6 +248,7 @@ if __name__ == '__main__':
     pathlib.Path('graphs/fft').mkdir(parents=True, exist_ok=True)
     pathlib.Path('data/converted').mkdir(parents=True, exist_ok=True)
     pathlib.Path('models/fully_connected_network').mkdir(parents=True, exist_ok=True)
+    pathlib.Path('models/k_nearest_neighbour').mkdir(parents=True, exist_ok=True)
 
     # -1 to have on thread on the cpu free for other usage. Remove for max performance.
     number_of_processes = 1
@@ -269,19 +281,20 @@ if __name__ == '__main__':
             if 'mains' in appliance:
                 continue
 
-                if 'refrigerator' in appliance:
-                    # X_train should be mains, Y_train is applian
-                    appliance_series = house_files[house][appliance]
-                    selected_mains = panda.merge(appliance_series, combined_mains, how='inner', left_index=True, right_index=True)
-                    queue.put({
-                        'X_train': selected_mains[['mains_1', 'mains_2']].to_numpy(),
-                        'Y_train': selected_mains['power'].to_numpy(),
-                        'house_name': house,
-                        'appliance_name': appliance
-                    })
+            if 'refrigerator' in appliance:
+                # X_train should be mains, Y_train is applian
+                appliance_series = house_files[house][appliance]
+                selected_signals = panda.merge(appliance_series, combined_mains, how='inner', left_index=True, right_index=True)
+                single_main = selected_signals['mains_1'] + selected_signals['mains_2']
+                queue.put({
+                    'X_train': single_main.to_numpy(),
+                    'Y_train': selected_signals['power'].to_numpy(),
+                    'house_name': house,
+                    'appliance_name': appliance
+                })
 
     for process_number in range(number_of_processes):
-        process = Process(target=execute_network_learning_queue, args=(queue,))
+        process = Process(target=execute_k_nearest_neighbour, args=(queue,))
         processes.append(process)
         process.start()
 
