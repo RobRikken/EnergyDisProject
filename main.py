@@ -239,14 +239,14 @@ if __name__ == '__main__':
     pathlib.Path('models/fully_connected_network').mkdir(parents=True, exist_ok=True)
 
     # -1 to have on thread on the cpu free for other usage. Remove for max performance.
-    number_of_processes = cpu_count() - 4
+    number_of_processes = 1
 
     convert_to_pickles = False
     number_of_houses = 6
 
     if convert_to_pickles:
         house_files = []
-        for house_number in range(1, number_of_houses):
+        for house_number in range(1, number_of_houses + 1):
             pathlib.Path('data/converted/house_' + str(house_number)).mkdir(parents=True, exist_ok=True)
             save_house_files('house_' + str(house_number))
 
@@ -269,15 +269,16 @@ if __name__ == '__main__':
             if 'mains' in appliance:
                 continue
 
-            # X_train should be mains, Y_train is applian
-            appliance_series = house_files[house][appliance]
-            selected_mains = panda.merge(appliance_series, combined_mains, how='inner', left_index=True, right_index=True)
-            queue.put({
-                'X_train': selected_mains[['mains_1', 'mains_2']].to_numpy(),
-                'Y_train': selected_mains['power'].to_numpy(),
-                'house_name': house,
-                'appliance_name': appliance
-            })
+                if 'refrigerator' in appliance:
+                    # X_train should be mains, Y_train is applian
+                    appliance_series = house_files[house][appliance]
+                    selected_mains = panda.merge(appliance_series, combined_mains, how='inner', left_index=True, right_index=True)
+                    queue.put({
+                        'X_train': selected_mains[['mains_1', 'mains_2']].to_numpy(),
+                        'Y_train': selected_mains['power'].to_numpy(),
+                        'house_name': house,
+                        'appliance_name': appliance
+                    })
 
     for process_number in range(number_of_processes):
         process = Process(target=execute_network_learning_queue, args=(queue,))
