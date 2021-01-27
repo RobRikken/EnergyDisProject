@@ -87,8 +87,8 @@ def plot_total_consumption(df, houses):
         ncol = int(len(houses)/2)
    
     # Plot total energy sonsumption of each appliance from two houses
-    fig, axes = plt.subplots(nrow,ncol,figsize=(40, 25))
-    plt.suptitle('Total enery consumption of each appliance', fontsize = 30)
+    fig, axes = plt.subplots(nrow,ncol,figsize=(30, 10))
+    plt.suptitle('Total enery consumption of each appliance', fontsize = 35)
     
     if len(houses) <= 3:
         for h in houses:
@@ -99,7 +99,7 @@ def plot_total_consumption(df, houses):
             axes[i-1].bar(y_pos, cons.values,  alpha=0.6) 
             plt.sca(axes[i-1])
             plt.xticks(y_pos, app, rotation = 45)
-            plt.title('House {}'.format(h))
+            plt.title('House {}'.format(h), fontsize=25)
 
     else:
         for h in houses[:int(len(houses)/2)]:
@@ -123,7 +123,6 @@ def plot_total_consumption(df, houses):
             plt.title('House {}'.format(i), fontsize=15)
         
     
-    
 ###------------
 ### DECISION TREE MULTIPLE APPLIANCES
 
@@ -136,12 +135,13 @@ def mae_loss(y_predict, y):
     return np.mean(np.abs(y_predict - y))
 
 
-def tree_reg(training_house, appliance, percentage_training_set = 0.5, plot_loss = False):
+def tree_reg(appliance, training_house = 1, percentage_training_set = 0.5, plot_loss = False):
     
     # split training house in 0.5 training and 0.5 validation set
-   # df1_train = df[training_house].loc[:dates[1][10]]
-    df1_train = df[training_house].loc[:dates[1][int(len(dates[1])*0.45)]]
-    df1_val = df[training_house].loc[dates[1][int(len(dates[1])*0.45)]:]
+    #df1_train = df[training_house].loc[:dates[1][10]]
+    #df1_val = df[training_house].loc[dates[1][11]:dates[1][16]]
+    df1_train = df[training_house].loc[:dates[1][int(len(dates[1])*percentage_training_set)]]
+    df1_val = df[training_house].loc[dates[1][int(len(dates[1])*percentage_training_set)]:]
     
     # for each set, determine x-values (main1 and main2)
     X_train = df1_train[['mains_1','mains_2']].values 
@@ -192,7 +192,7 @@ def predictions(model, test_house, appliance, plot = True):
     print('Mean absolute error on the test set: ', mae_tree)
     
     if plot == True:
-        plot_each_app(df1_test, dates[test_house], y_pred, y_test, 
+        plot_each_app(df1_test, dates[test_house][12:15], y_pred, y_test, 
                       title= 'Real and predict '+ appliance + ' of house' + str(test_house))
         
     return y_pred, mse_tree, mae_tree
@@ -272,7 +272,7 @@ if __name__ == '__main__':
         plot_df(df[i].loc[:dates[i][1]], 'First 2 day data of house {}'.format(i))
     
     # total energy consumption of all houses
-    plot_total_consumption(df, houses=[1,2,3,4,5,6])    
+    plot_total_consumption(df, houses=[1,2,3])    
     
     
     
@@ -299,10 +299,39 @@ if __name__ == '__main__':
     
     
     # train the model
-    tree_model = tree_reg(training_house, appliance = training_appliance_name, plot_loss=(True))
+    tree_model = tree_reg(training_house=1, appliance = training_appliance_name, 
+                          percentage_training_set=0.45, plot_loss=(True))
+    
     
     # use model to predict another house
-    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, test_house, test_appliance_name, plot=True)
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, test_house, test_appliance_name, plot=False)
+
+
+
+    
+    #### DOES NOT REALLY MAKE SENSE CAUSE MODEL WAS TRAINED & VALIDATED USING COMPLETE HOUSE 1
+    # test set
+    # use the model to predict part of house 1 (test set)
+   # df1_test = df[1].loc[dates[1][17]:] # day 17- end (day 23) for testing
+   # X_test1 = df1_test[['mains_1','mains_2']].values
+   # y_test1 = df1_test['refrigerator_5'].values
+    
+   # y_test_predict_1 = tree_model.predict(X_test1)
+   # mse_tree_1 = mse_loss(y_test_predict_1, y_test1) # derive mse
+   # mae_tree_1 = mae_loss(y_test_predict_1, y_test1) # derive mae
+   # print('Mean square error on test set: ', mse_tree_1)
+   # print('Mean absolute error on the test set: ', mae_tree_1)
+
+    # Plot real and predict refrigerator consumption on six days of test data
+   # plot_each_app(df1_test, dates[1][19:22], y_test_predict_1, y_test1, 'Real and predict Refrigerator on 3 test day of house 1')
+
+    
+    
+    
+    
+    
+    
+
     
 
 
