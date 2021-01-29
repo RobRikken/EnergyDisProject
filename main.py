@@ -497,7 +497,7 @@ if __name__ == '__main__':
     # Now we combine three houses, and make on training set out of them.
     house_files = load_house_files()
     # House numbers are string because later they are used as a substring to check for.
-    houses_to_train_on = ['1', '2', '3']
+    houses_to_train_on = ['3', '5', '6']
     combined_mains = {}
     for house in house_files:
         # Get the house number for the string and check if it is in the houses to train.
@@ -524,7 +524,7 @@ if __name__ == '__main__':
                         right_index=True
                     )
 
-    dates = np.unique(combined_mains['house_1'].index.date)
+    dates = np.unique(combined_mains[house].index.date)
     first = True
     for date in dates:
         for house in house_files:
