@@ -368,7 +368,6 @@ def fully_connected_network(X_train, Y_train, folder_name: str, appliance_name: 
                         batch_size=512, verbose=1, epochs=200,
                         validation_split=0.33, callbacks=[checkpointer])
 
-
 if __name__ == '__main__':
     model_fc = fully_connected_network()
     pred_fc_1 = model_fc.predict(X_test1).reshape(-1)
