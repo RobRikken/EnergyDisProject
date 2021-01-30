@@ -24,7 +24,7 @@ from keras.layers.core import Dense, Activation, Dropout
 from keras.models import Sequential
 from keras.layers.recurrent import LSTM
 import glob
-#environ["CUDA_VISIBLE_DEVICES"] = "0"
+# environ["CUDA_VISIBLE_DEVICES"] = "0"
 import tensorflow as tf
 
 
@@ -122,7 +122,6 @@ def make_fft_plot(
 
 
 def k_nearest_neighbour(raw_signal_data: np.array, truth_values: np.array, house_name, appliance_name):
-
     model = KnnDtw(n_neighbors=5, max_warping_window=10000)
     model.fit(raw_signal_data, truth_values)
 
@@ -267,15 +266,22 @@ def process_networked_learning():
             if 'mains' in appliance:
                 continue
 
-            if not ('refrigerator' in appliance):
+            if 'refrigerator' in appliance:
                 # X_train should be mains, Y_train is applian
                 appliance_series = house_files[house][appliance]
-                selected_mains = panda.merge(appliance_series, combined_mains, how='inner', left_index=True,
-                                             right_index=True)
+                selected_mains = panda.merge(
+                    appliance_series,
+                    combined_mains,
+                    how='inner',
+                    left_index=True,
+                    right_index=True
+                )
+                part_of_frame_end = round(len(appliance_series.index) * 0.7)
+                selected_mains = selected_mains.iloc[0:part_of_frame_end, :]
                 queue.put({
                     'X_train': selected_mains[['mains_1', 'mains_2']].to_numpy(),
                     'Y_train': selected_mains['power'].to_numpy(),
-                    'house_name': house,
+                    'house_name': house + '_70_i_' + str(part_of_frame_end),
                     'appliance_name': appliance
                 })
 
@@ -289,7 +295,6 @@ def process_networked_learning():
 
 
 def process_k_nearest_neighbours():
-
     house_files = load_house_files()
     processes = []
     queue = Queue()
@@ -304,7 +309,8 @@ def process_k_nearest_neighbours():
 
             # X_train should be mains, Y_train is applian
             appliance_series = house_files[house][appliance]
-            selected_signals = panda.merge(appliance_series, combined_mains, how='inner', left_index=True, right_index=True)
+            selected_signals = panda.merge(appliance_series, combined_mains, how='inner', left_index=True,
+                                           right_index=True)
             single_main = selected_signals['mains_1'] + selected_signals['mains_2']
             queue.put({
                 'X_train': single_main.to_numpy(),
@@ -356,12 +362,12 @@ def fft_all_appliances():
             make_fft_plot(fft_result, 100000, house + '_' + appliance)
 
 
-def process_data(df, dates, x_features, y_features, look_back = 50):
+def process_data(df, dates, x_features, y_features, look_back=50):
     i = 0
     for date in dates:
         data = df.loc[date]
         len_data = data.shape[0]
-        x = np.array([data[x_features].values[i:i+look_back]
+        x = np.array([data[x_features].values[i:i + look_back]
                       for i in range(len_data - look_back)]).reshape(-1, look_back, 2)
         y = data[y_features].values[look_back:, :]
         if i == 0:
@@ -388,13 +394,13 @@ def read_merge_data(house, labels):
     path = 'data/low_freq/house_{}/'.format(house)
     file = path + 'channel_1.dat'
     df = panda.read_table(file, sep=' ', names=['unix_time', labels[house][1]],
-                       dtype={'unix_time': 'int64', labels[house][1]: 'float64'})
+                          dtype={'unix_time': 'int64', labels[house][1]: 'float64'})
 
     num_apps = len(glob.glob(path + 'channel*'))
     for i in range(2, num_apps + 1):
         file = path + 'channel_{}.dat'.format(i)
         data = panda.read_table(file, sep=' ', names=['unix_time', labels[house][i]],
-                             dtype={'unix_time': 'int64', labels[house][i]: 'float64'})
+                                dtype={'unix_time': 'int64', labels[house][i]: 'float64'})
         df = panda.merge(df, data, how='inner', on='unix_time')
     df['timestamp'] = df['unix_time'].astype("datetime64[s]")
     df = df.set_index(df['timestamp'].values)
@@ -467,33 +473,7 @@ def run_with_gpu():
                 print('Finish trainning. Time: ', time.time() - start)
 
 
-# ---------------------------
-# main
-# ---------------------------
-if __name__ == '__main__':
-
-    # print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-
-    # physical_devices = tf.config.list_physical_devices('GPU')
-    # tf.config.experimental.set_memory_growth(physical_devices[0], True)
-
-    pathlib.Path('graphs/fft').mkdir(parents=True, exist_ok=True)
-    pathlib.Path('data/converted').mkdir(parents=True, exist_ok=True)
-    pathlib.Path('models/fully_connected_network').mkdir(parents=True, exist_ok=True)
-    pathlib.Path('models/lstm').mkdir(parents=True, exist_ok=True)
-
-    # -1 to have on thread on the cpu free for other usage. Remove for max performance.
-    number_of_processes = 1
-
-    convert_to_pickles = False
-    number_of_houses = 6
-
-    if convert_to_pickles:
-        house_files = []
-        for house_number in range(1, number_of_houses + 1):
-            pathlib.Path('data/converted/house_' + str(house_number)).mkdir(parents=True, exist_ok=True)
-            save_house_files('house_' + str(house_number))
-
+def process_multiple_houses_fcnn():
     # Now we combine three houses, and make on training set out of them.
     house_files = load_house_files()
     # House numbers are string because later they are used as a substring to check for.
@@ -506,7 +486,8 @@ if __name__ == '__main__':
             house_files[house]['mains__1'].name = 'mains_1'
             house_files[house]['mains__2'].name = 'mains_2'
             # The mains are here combined into a dataframe, so it can be joined in one go to the appliance.
-            combined_mains[house] = panda.concat([house_files[house]['mains__1'], house_files[house]['mains__2']], axis=1)
+            combined_mains[house] = panda.concat([house_files[house]['mains__1'], house_files[house]['mains__2']],
+                                                 axis=1)
             for appliance in house_files[house]:
                 # Do not train on the mains, they are the X_input.
                 if 'mains' in appliance:
@@ -545,3 +526,32 @@ if __name__ == '__main__':
 
     fully_connected_network(x_train.to_numpy(), y_train.to_numpy(), 'house' + combined_house_name, 'refrigerator')
 
+
+# ---------------------------
+# main
+# ---------------------------
+if __name__ == '__main__':
+
+    # print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+
+    # physical_devices = tf.config.list_physical_devices('GPU')
+    # tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+    pathlib.Path('graphs/fft').mkdir(parents=True, exist_ok=True)
+    pathlib.Path('data/converted').mkdir(parents=True, exist_ok=True)
+    pathlib.Path('models/fully_connected_network').mkdir(parents=True, exist_ok=True)
+    pathlib.Path('models/lstm').mkdir(parents=True, exist_ok=True)
+
+    # -1 to have on thread on the cpu free for other usage. Remove for max performance.
+    number_of_processes = 1
+
+    convert_to_pickles = False
+    number_of_houses = 6
+
+    if convert_to_pickles:
+        house_files = []
+        for house_number in range(1, number_of_houses + 1):
+            pathlib.Path('data/converted/house_' + str(house_number)).mkdir(parents=True, exist_ok=True)
+            save_house_files('house_' + str(house_number))
+
+    process_networked_learning()
