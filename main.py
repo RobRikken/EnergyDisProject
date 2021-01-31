@@ -21,8 +21,8 @@ import tensorflow as tf
 from itertools import chain
 from IPython.display import display
 
-# tabeas_path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/'
-tabeas_path = ''
+tabeas_path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/'
+#tabeas_path = ''
 
 def load_data_file(path: str):
     return panda.read_csv(
@@ -322,37 +322,6 @@ def plot_each_app(df, dates, predict, y_test, title, look_back = 0):
         axes.flat[i].legend()
         l = len(ind)
         
-        
-
-def fcnn_run_same_house(model, training_house, appliance, percentage_training_set = 0.7, plot = True):
-# determine test set (i.e. remaining 30% of house 1)
-    df_training_house = df[training_house]
-    df_test = df_training_house[int(len(df_training_house)*0.70):]
-    
-    X_test = df_test[['mains_1','mains_2']].values
-    y_test = df_test[['refrigerator_5']].values
-    
-    # predict
-    y_pred = model.predict(X_test).reshape(-1)
-    
-    # derive mse and mae
-    mse_fc = mse_loss(y_pred, y_test)
-    mae_fc = mae_loss(y_pred, y_test)
-    print('Mean square error on test set: ', mse_fc)
-    print('Mean absolute error on the test set: ', mae_fc)
-    
-    # get dates for plot
-    if plot:
-        dates_test = {}
-        dates_test = [str(time)[:10] for time in df_test.index.values]
-        dates_test = sorted(list(set(dates_test)))
-
-        plot_each_app(df[training_house], dates_test, y_pred, y_test, 
-                      'FC model for refrigerator: train on house 1, predict on house 1')
-    
-    return y_pred, mse_fc, mae_fc
-
-
 
 
 def predictions(model, test_house, appliance, plot = True):
@@ -430,13 +399,8 @@ if __name__ == '__main__':
     # model 1: trained on house 1
     print("MODEL 1")
     # load model 
-    fcnn_model1 = load_model(tabeas_path + "models/fully_connected_network/house_1_70_i_522115/refrigerator__5_weights.197-8823.38.hdf5")
+    fcnn_model1 = load_model(tabeas_path + "models/fully_connected_network/house_1/refrigerator__5_weights.198-8768.96.hdf5")
 
-    
-    fcnn_predictions, fcnn_mse, fcnn_mae = fcnn_run_same_house(model = fcnn_model1, 
-                                                               training_house = 1, 
-                                                               appliance = 'refrigerator_5')
-    
     
     # train on other houses
     print("use model 1 on house 2")
@@ -473,5 +437,52 @@ if __name__ == '__main__':
     
     test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
                                                                          test_house, 
+                                                                         test_appliance_name,
+                                                                         plot= True)
+    
+    # model 2: trained on houses 1,2,3
+    print("MODEL 2")
+    fcnn_model2 = load_model(tabeas_path + 'models/fully_connected_network/house_1_2_3/refrigerator_weights.198-5262.53.hdf5')
+    
+
+    print("use model 2 on house 5")
+    test_house = 5
+    test_appliance_name = "refrigerator_18"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model2, 
+                                                                         test_house, 
                                                                          test_appliance_name, 
                                                                          plot=True)
+    
+    print("use model 2 on house 6")
+    test_house = 6
+    test_appliance_name = "refrigerator_8"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model2, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
+    
+    # model 3: trained on houses 3,5,6
+    print("MODEL 3")
+    fcnn_model3 = load_model(tabeas_path + "models/fully_connected_network/house_3_5_6/refrigerator_weights.199-7313.56.hdf5")
+    
+    print("use model 3 on house 1")
+    test_house = 1
+    test_appliance_name = "refrigerator_5"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model3, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
+    print("use model 3 on house 2")
+    test_house = 2
+    test_appliance_name = "refrigerator_9"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model3, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
