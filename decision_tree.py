@@ -30,6 +30,7 @@ import glob
 from sklearn.tree import DecisionTreeRegressor
 from itertools import chain
 
+tabeas_path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/'
 
 #-------------------------------------
 # function def
@@ -38,7 +39,7 @@ from itertools import chain
 def read_label():
     label = {}
     for i in range(1, 7):
-        hi = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/house_{}/labels.dat'.format(i)
+        hi = tabeas_path + 'data/low_freq/house_{}/labels.dat'.format(i)
         label[i] = {}
         with open(hi) as f:
             for line in f:
@@ -47,7 +48,7 @@ def read_label():
     return label
 
 def read_merge_data(house):
-    path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/house_{}/'.format(house)
+    path = tabeas_path + 'data/low_freq/house_{}/'.format(house)
     file = path + 'channel_1.dat'
     df = pd.read_table(file, sep = ' ', names = ['unix_time', labels[house][1]], 
                                        dtype = {'unix_time': 'int64', labels[house][1]:'float64'}) 
@@ -78,33 +79,33 @@ def load_data_file(path: str):
 
 
 def save_house_files(house: str) -> None:
-    (_, __, file_names) = next(walk('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/' + house + '/'))
+    (_, __, file_names) = next(walk(tabeas_path + 'data/low_freq/' + house + '/'))
     file_names.remove('labels.dat')
 
     for file_name in file_names:
-        signal_dataframe = load_data_file('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/' + house + '/' + file_name)
+        signal_dataframe = load_data_file(tabeas_path + 'data/low_freq/' + house + '/' + file_name)
         signal_dataframe.columns = ['timestamp', 'power']
         signal_dataframe.set_index('timestamp', inplace=True)
         signal_dataframe.index = pd.to_datetime(signal_dataframe.index, unit='s')
         signal_series = pd.Series(signal_dataframe['power'], signal_dataframe.index)
-        signal_series.to_pickle('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/converted/' + house + '/' + re.sub("\.dat$", '', file_name) + '.pkl')
+        signal_series.to_pickle(tabeas_path + 'data/converted/' + house + '/' + re.sub("\.dat$", '', file_name) + '.pkl')
 
 
 def load_house_files() -> Dict:
-    (_, house_names, _) = next(walk('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/converted/'))
+    (_, house_names, _) = next(walk(tabeas_path + 'data/converted/'))
 
     files = {}
     for house_name in house_names:
         files[house_name] = {}
-        labels_file = load_data_file('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/' + house_name + '/labels.dat')
+        labels_file = load_data_file(tabeas_path + 'data/low_freq/' + house_name + '/labels.dat')
         labels = pd.Series(labels_file[1])
         labels.index = labels_file[0]
-        (_, _, file_names) = next(walk('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/converted/' + house_name + '/'))
+        (_, _, file_names) = next(walk(tabeas_path + 'data/converted/' + house_name + '/'))
         for file_name in file_names:
             appliance_number = file_name.split("_")[1]
             appliance_number = int(re.sub("\.pkl$", '', appliance_number))
             appliance_name = labels[appliance_number] + '__' + str(appliance_number)
-            files[house_name][appliance_name] = pd.read_pickle('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/converted/' + house_name + '/' + file_name)
+            files[house_name][appliance_name] = pd.read_pickle(tabeas_path + 'data/converted/' + house_name + '/' + file_name)
 
     return files
 

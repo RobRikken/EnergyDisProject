@@ -21,6 +21,8 @@ import tensorflow as tf
 from itertools import chain
 from IPython.display import display
 
+# tabeas_path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/'
+tabeas_path = ''
 
 def load_data_file(path: str):
     return panda.read_csv(
@@ -31,11 +33,11 @@ def load_data_file(path: str):
 
 
 def save_house_files(house: str) -> None:
-    (_, __, file_names) = next(walk('data/low_freq/' + house + '/'))
+    (_, __, file_names) = next(walk(tabeas_path + 'data/low_freq/' + house + '/'))
     file_names.remove('labels.dat')
 
     for file_name in file_names:
-        signal_dataframe = load_data_file('data/low_freq/' + house + '/' + file_name)
+        signal_dataframe = load_data_file(tabeas_path + 'data/low_freq/' + house + '/' + file_name)
         signal_dataframe.columns = ['timestamp', 'power']
         signal_dataframe.set_index('timestamp', inplace=True)
         signal_dataframe.index = panda.to_datetime(signal_dataframe.index, unit='s')
@@ -49,10 +51,10 @@ def load_house_files() -> Dict:
     files = {}
     for house_name in house_names:
         files[house_name] = {}
-        labels_file = load_data_file('data/low_freq/' + house_name + '/labels.dat')
+        labels_file = load_data_file(tabeas_path + 'data/low_freq/' + house_name + '/labels.dat')
         labels = panda.Series(labels_file[1])
         labels.index = labels_file[0]
-        (_, _, file_names) = next(walk('data/converted/' + house_name + '/'))
+        (_, _, file_names) = next(walk(tabeas_path + 'data/converted/' + house_name + '/'))
         for file_name in file_names:
             appliance_number = file_name.split("_")[1]
             appliance_number = int(re.sub("\.pkl$", '', appliance_number))
@@ -134,7 +136,7 @@ def process_networked_learning():
                 continue
 
             if 'refrigerator' in appliance:
-                # X_train should be mains, Y_train is applian
+                # X_train should be mains, Y_train is appliance
                 appliance_series = house_files[house][appliance]
                 selected_mains = panda.merge(
                     appliance_series,
@@ -143,12 +145,12 @@ def process_networked_learning():
                     left_index=True,
                     right_index=True
                 )
-                part_of_frame_end = round(len(appliance_series.index) * 0.7)
-                selected_mains = selected_mains.iloc[0:part_of_frame_end, :]
+                # part_of_frame_end = round(len(appliance_series.index) * 0.7)
+                # selected_mains = selected_mains.iloc[0:part_of_frame_end, :]
                 queue.put({
                     'X_train': selected_mains[['mains_1', 'mains_2']].to_numpy(),
                     'Y_train': selected_mains['power'].to_numpy(),
-                    'house_name': house + '_70_i_' + str(part_of_frame_end),
+                    'house_name': house,
                     'appliance_name': appliance
                 })
 
@@ -205,7 +207,7 @@ def generate_dates(ddata_with_time_index: panda.DataFrame) -> List:
 
 
 def read_merge_data(house):
-    path = 'data/low_freq/house_{}/'.format(house)
+    path = tabeas_path + 'data/low_freq/house_{}/'.format(house)
     file = path + 'channel_1.dat'
     df = panda.read_table(file, sep = ' ', names = ['unix_time', labels[house][1]], 
                                        dtype = {'unix_time': 'int64', labels[house][1]:'float64'}) 
@@ -225,7 +227,7 @@ def read_merge_data(house):
 def read_label():
     label = {}
     for i in range(1, 7):
-        hi = 'data/low_freq/house_{}/labels.dat'.format(i)
+        hi = tabeas_path + 'data/low_freq/house_{}/labels.dat'.format(i)
         label[i] = {}
         with open(hi) as f:
             for line in f:
@@ -389,10 +391,10 @@ if __name__ == '__main__':
     # physical_devices = tf.config.list_physical_devices('GPU')
     # tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    pathlib.Path('graphs/fft').mkdir(parents=True, exist_ok=True)
-    pathlib.Path('data/converted').mkdir(parents=True, exist_ok=True)
-    pathlib.Path('models/fully_connected_network').mkdir(parents=True, exist_ok=True)
-    pathlib.Path('models/lstm').mkdir(parents=True, exist_ok=True)
+    pathlib.Path(tabeas_path + 'graphs/fft').mkdir(parents=True, exist_ok=True)
+    pathlib.Path(tabeas_path + 'data/converted').mkdir(parents=True, exist_ok=True)
+    pathlib.Path(tabeas_path + 'models/fully_connected_network').mkdir(parents=True, exist_ok=True)
+    pathlib.Path(tabeas_path + 'models/lstm').mkdir(parents=True, exist_ok=True)
 
     # -1 to have on thread on the cpu free for other usage. Remove for max performance.
     number_of_processes = 1
@@ -403,12 +405,13 @@ if __name__ == '__main__':
     if convert_to_pickles:
         house_files = []
         for house_number in range(1, number_of_houses + 1):
-            pathlib.Path('data/converted/house_' + str(house_number)).mkdir(parents=True, exist_ok=True)
+            pathlib.Path(tabeas_path + 'data/converted/house_' + str(house_number)).mkdir(parents=True, exist_ok=True)
             save_house_files('house_' + str(house_number))
 
-    process_multiple_houses_fcnn(houses_to_train_on=['1', '2', '3'])
-    process_multiple_houses_fcnn(houses_to_train_on=['3', '5', '6'])
-    
+    #process_multiple_houses_fcnn(houses_to_train_on=['1', '2', '3'])
+    #process_multiple_houses_fcnn(houses_to_train_on=['3', '5', '6'])
+
+    process_networked_learning()
     
     #### use models to predict signal
     
@@ -427,7 +430,7 @@ if __name__ == '__main__':
     # model 1: trained on house 1
     print("MODEL 1")
     # load model 
-    fcnn_model1 = load_model("models/fully_connected_network/house_1_70_i_522115/refrigerator__5_weights.197-8823.38.hdf5")
+    fcnn_model1 = load_model(tabeas_path + "models/fully_connected_network/house_1_70_i_522115/refrigerator__5_weights.197-8823.38.hdf5")
 
     
     fcnn_predictions, fcnn_mse, fcnn_mae = fcnn_run_same_house(model = fcnn_model1, 
@@ -472,12 +475,3 @@ if __name__ == '__main__':
                                                                          test_house, 
                                                                          test_appliance_name, 
                                                                          plot=True)
-    
-    
-    
-    
-    
-    
-    
-    
-    
