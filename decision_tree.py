@@ -150,6 +150,11 @@ def combine_houses(houses_to_train_on = ['1','2','3']):
             dates_combined_houses = sorted(list(set(dates_combined_houses)))
             d.append(dates_combined_houses)
     
+    # get only overlapping days – too few! 
+    #result = set(d[0])
+    #for s in d[1:]:
+    #    result.intersection_update(s)
+        
     d = list(chain.from_iterable(d))
     d = np.unique(d)
     
@@ -253,14 +258,14 @@ def mae_loss(y_predict, y):
 
 
 # model 1, i.e. using signals from one house only (training house)
-def model_1(appliance, df = df[training_house], percentage_training_set = 0.5, plot_loss = False,
-            predict = True, plot = True):
+def model_1(appliance, df, percentage_training_set = 0.7, plot_loss = False,
+            min_samples_split=np.arange(100, 600, 10), predict = True, plot = True):
     
     # split training house in 0.5 training and 0.5 validation set
     #df1_train = df[training_house].loc[:dates[1][10]]
     #df1_val = df[training_house].loc[dates[1][11]:dates[1][16]]
-    df1_train = df.loc[:dates[training_house][int(len(dates[1])*percentage_training_set)]]
-    df1_val = df.loc[dates[training_house][int(len(dates[1])*percentage_training_set)]:]
+    df1_train = df[:int(len(df)*percentage_training_set)]
+    df1_val = df[int(len(df)*percentage_training_set):]
     
     # for each set, determine x-values (main1 and main2)
     X_train = df1_train[['mains_1','mains_2']].values 
@@ -270,7 +275,7 @@ def model_1(appliance, df = df[training_house], percentage_training_set = 0.5, p
     y_train = df1_train[appliance].values # get y-values from train set
     y_val = df1_val[appliance].values # get y-value from validation set
     
-    min_samples_split=np.arange(100, 500, 10) # try different values for min_samples_split
+    # min_samples_split=np.arange(100, 600, 10) # try different values for min_samples_split
     
     clfs = []
     losses = []
@@ -299,8 +304,14 @@ def model_1(appliance, df = df[training_house], percentage_training_set = 0.5, p
     print('Mean square error on test set: ', mse_tree)
     print('Mean absolute error on the test set: ', mae_tree)
 
+
     if plot == True: 
-        plot_each_app(df1_val, dates[training_house][int(len(dates[1])*percentage_training_set):], 
+        
+        dates_test = {}
+        dates_test = [str(time)[:10] for time in df1_val.index.values]
+        dates_test = sorted(list(set(dates_test)))
+        
+        plot_each_app(df1_val, dates_test, 
                       y_pred_val, y_val, title= 'Real and predict '+ appliance + ' of house ' + str(training_house))    
     
     return tree_model
@@ -312,8 +323,8 @@ def model_2(houses = ['1', '2', '3'], appliance = 'power', percentage_training_s
 
     houses_combined_signal = combine_houses(houses_to_train_on = houses)
     
-    houses_combined_train = houses_combined_signal.loc[:dates[training_house][int(len(dates[1])*percentage_training_set)]]
-    houses_combined_test = houses_combined_signal.loc[dates[training_house][int(len(dates[1])*percentage_training_set)]:]
+    houses_combined_train = houses_combined_signal[:int(len(houses_combined_signal)*percentage_training_set)]
+    houses_combined_test = houses_combined_signal[int(len(houses_combined_signal)*percentage_training_set):]
     
     # for each set, determine x-values (main1 and main2)
     X_train = houses_combined_train[['mains_1','mains_2']].values 
@@ -426,8 +437,6 @@ def plot_losses(losses, min_samples_split):
 
 
 
-
-
 #-------------------------------------
 # main
 #-------------------------------------
@@ -474,28 +483,52 @@ if __name__ == '__main__':
     ###------------
     ### MODEL
     
+    print("MODEL 1")
+    
     training_house = 1
     training_appliance_name = "refrigerator_5"
     
     
-    # the appliances have different names in each of the houses
-    # check which appliance you'd like to predict beforehand
-    
-    # appliances of training house
-    # appliances_training_house = list(df[training_house].columns.values[2:])
-    # print(appliances_training_house)
-    
-    # appliances of test house
-    # appliances_test_house = list(df[test_house].columns.values[2:])
-    # print(appliances_test_house)
-    
     # train the model
-    tree_model = model_1(df = df[1], appliance = training_appliance_name, 
+    tree_model = model_1(df = df[training_house], appliance = training_appliance_name, 
                           percentage_training_set=0.70, plot_loss=(True))
     
     # use model to predict another house
+    print("use model 1 on house 2")
+    test_house = 2
+    #print(list(df[test_house].columns.values[2:]))
+    test_appliance_name = "refrigerator_9"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
+    
+    print("use model 1 on house 3")
+    test_house = 3
+    #print(list(df[test_house].columns.values[2:]))
+    test_appliance_name = "refrigerator_7"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
+    print("use model 1 on house 5")
+    test_house = 5
+    #print(list(df[test_house].columns.values[2:]))
+    test_appliance_name = "refrigerator_18"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
+    
+    print("use model 1 on house 6")
     test_house = 6
-    print(list(df[test_house].columns.values[2:]))
+    #print(list(df[test_house].columns.values[2:]))
     test_appliance_name = "refrigerator_8"
     
     test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, 
@@ -506,31 +539,55 @@ if __name__ == '__main__':
     ###------------
     ### MODEL 2
     
+    print("MODEL 2")
+    
     # aggregate houses 1,2,3
     tree_model2 = model_2(plot=True)
             
     # use model to predict another house
-    test_house = 5
-    print(list(df[test_house].columns.values[2:]))
     
+    print("use model 2 on house 5")
+    test_house = 5
+    #print(list(df[test_house].columns.values[2:]))
     test_appliance_name = "refrigerator_18"    
     
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model2, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
+    print("use model 2 on house 6")
+    test_house = 6
+    #print(list(df[test_house].columns.values[2:]))
+    test_appliance_name = "refrigerator_8"    
     
     test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model2, 
                                                                          test_house, 
                                                                          test_appliance_name, 
                                                                          plot=True)
 
+
+
     # aggregate houses 3,5,6
     tree_model3 = model_2(houses=['3', '5', '6'], plot = True)
             
     # use model to predict another house
+    print("use model 3 on house 1")
+    test_house = 1
+    #print(list(df[test_house].columns.values[2:]))
+    test_appliance_name = "refrigerator_5"    
+     
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model3, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+
+    
+    print("use model 3 on house 2")
     test_house = 2
-    print(list(df[test_house].columns.values[2:]))
-    
+    #print(list(df[test_house].columns.values[2:]))
     test_appliance_name = "refrigerator_9"    
-    
-    
+     
     test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model3, 
                                                                          test_house, 
                                                                          test_appliance_name, 
