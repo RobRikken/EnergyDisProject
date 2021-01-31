@@ -18,12 +18,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 #%matplotlib inline
 from IPython.display import display
-import datetime
+#import datetime
 from os import walk
 import re
 from typing import Dict
 import time
-import math
+#import math
 import warnings
 warnings.filterwarnings("ignore")
 import glob
@@ -317,7 +317,7 @@ def model_1(appliance, df, percentage_training_set = 0.7, plot_loss = False,
     return tree_model
 
 
-# model 2, i.e. using combined signals
+# model 2 & 3, i.e. using combined signals
 def model_2(houses = ['1', '2', '3'], appliance = 'power', percentage_training_set = 0.70, 
             predict = True, plot = False):
 
@@ -443,6 +443,7 @@ def plot_losses(losses, min_samples_split):
 
 if __name__ == '__main__':
 # get labels for houses 1 and 2
+
     labels = read_label()
     for i in range(1,7):
         print('House {}: '.format(i), labels[i], '\n')
@@ -569,6 +570,9 @@ if __name__ == '__main__':
 
 
     # aggregate houses 3,5,6
+    print("MODEL 3")
+    
+    
     tree_model3 = model_2(houses=['3', '5', '6'], plot = True)
             
     # use model to predict another house
