@@ -38,7 +38,7 @@ from itertools import chain
 def read_label():
     label = {}
     for i in range(1, 7):
-        hi = 'data/low_freq/house_{}/labels.dat'.format(i)
+        hi = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/house_{}/labels.dat'.format(i)
         label[i] = {}
         with open(hi) as f:
             for line in f:
@@ -47,7 +47,7 @@ def read_label():
     return label
 
 def read_merge_data(house):
-    path = 'data/low_freq/house_{}/'.format(house)
+    path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/house_{}/'.format(house)
     file = path + 'channel_1.dat'
     df = pd.read_table(file, sep = ' ', names = ['unix_time', labels[house][1]], 
                                        dtype = {'unix_time': 'int64', labels[house][1]:'float64'}) 
@@ -78,40 +78,40 @@ def load_data_file(path: str):
 
 
 def save_house_files(house: str) -> None:
-    (_, __, file_names) = next(walk('data/low_freq/' + house + '/'))
+    (_, __, file_names) = next(walk('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/' + house + '/'))
     file_names.remove('labels.dat')
 
     for file_name in file_names:
-        signal_dataframe = load_data_file('data/low_freq/' + house + '/' + file_name)
+        signal_dataframe = load_data_file('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/' + house + '/' + file_name)
         signal_dataframe.columns = ['timestamp', 'power']
         signal_dataframe.set_index('timestamp', inplace=True)
         signal_dataframe.index = pd.to_datetime(signal_dataframe.index, unit='s')
         signal_series = pd.Series(signal_dataframe['power'], signal_dataframe.index)
-        signal_series.to_pickle('data/converted/' + house + '/' + re.sub("\.dat$", '', file_name) + '.pkl')
+        signal_series.to_pickle('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/converted/' + house + '/' + re.sub("\.dat$", '', file_name) + '.pkl')
 
 
 def load_house_files() -> Dict:
-    (_, house_names, _) = next(walk('data/converted/'))
+    (_, house_names, _) = next(walk('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/converted/'))
 
     files = {}
     for house_name in house_names:
         files[house_name] = {}
-        labels_file = load_data_file('data/low_freq/' + house_name + '/labels.dat')
+        labels_file = load_data_file('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/low_freq/' + house_name + '/labels.dat')
         labels = pd.Series(labels_file[1])
         labels.index = labels_file[0]
-        (_, _, file_names) = next(walk('data/converted/' + house_name + '/'))
+        (_, _, file_names) = next(walk('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/converted/' + house_name + '/'))
         for file_name in file_names:
             appliance_number = file_name.split("_")[1]
             appliance_number = int(re.sub("\.pkl$", '', appliance_number))
             appliance_name = labels[appliance_number] + '__' + str(appliance_number)
-            files[house_name][appliance_name] = pd.read_pickle('data/converted/' + house_name + '/' + file_name)
+            files[house_name][appliance_name] = pd.read_pickle('/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/data/converted/' + house_name + '/' + file_name)
 
     return files
 
 
 ###------------
 ### LOAD (CONVERTED) FILES AND COMBINE HOUSES 
-def combine_houses(houses_to_train_on=['1', '2', '3']):
+def combine_houses(houses_to_train_on = ['1','2','3']):
     #houses_to_train_on = ['3','5','6']
     
     # Now we combine three houses, and make on training set out of them.
@@ -150,11 +150,11 @@ def combine_houses(houses_to_train_on=['1', '2', '3']):
             dates_combined_houses = sorted(list(set(dates_combined_houses)))
             d.append(dates_combined_houses)
     
-    # get only overlapping days – too few!
+    # get only overlapping days – too few! 
     #result = set(d[0])
     #for s in d[1:]:
     #    result.intersection_update(s)
-
+        
     d = list(chain.from_iterable(d))
     d = np.unique(d)
     
@@ -305,13 +305,13 @@ def model_1(appliance, df, percentage_training_set = 0.7, plot_loss = False,
     print('Mean absolute error on the test set: ', mae_tree)
 
 
-    if plot == True:
-
+    if plot == True: 
+        
         dates_test = {}
         dates_test = [str(time)[:10] for time in df1_val.index.values]
         dates_test = sorted(list(set(dates_test)))
-
-        plot_each_app(df1_val, dates_test,
+        
+        plot_each_app(df1_val, dates_test, 
                       y_pred_val, y_val, title= 'Real and predict '+ appliance + ' of house ' + str(training_house))    
     
     return tree_model
@@ -484,13 +484,13 @@ if __name__ == '__main__':
     ### MODEL
     
     print("MODEL 1")
-
+    
     training_house = 1
     training_appliance_name = "refrigerator_5"
     
-
+    
     # train the model
-    tree_model = model_1(df = df[training_house], appliance = training_appliance_name,
+    tree_model = model_1(df = df[training_house], appliance = training_appliance_name, 
                           percentage_training_set=0.70, plot_loss=(True))
     
     # use model to predict another house
@@ -498,34 +498,34 @@ if __name__ == '__main__':
     test_house = 2
     #print(list(df[test_house].columns.values[2:]))
     test_appliance_name = "refrigerator_9"
-
-    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model,
-                                                                         test_house,
-                                                                         test_appliance_name,
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
                                                                          plot=True)
-
-
+    
+    
     print("use model 1 on house 3")
     test_house = 3
     #print(list(df[test_house].columns.values[2:]))
     test_appliance_name = "refrigerator_7"
-
-    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model,
-                                                                         test_house,
-                                                                         test_appliance_name,
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
                                                                          plot=True)
-
+    
     print("use model 1 on house 5")
     test_house = 5
     #print(list(df[test_house].columns.values[2:]))
     test_appliance_name = "refrigerator_18"
-
-    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model,
-                                                                         test_house,
-                                                                         test_appliance_name,
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
                                                                          plot=True)
-
-
+    
+    
     print("use model 1 on house 6")
     test_house = 6
     #print(list(df[test_house].columns.values[2:]))
@@ -540,30 +540,30 @@ if __name__ == '__main__':
     ### MODEL 2
     
     print("MODEL 2")
-
+    
     # aggregate houses 1,2,3
     tree_model2 = model_2(plot=True)
             
     # use model to predict another house
-
+    
     print("use model 2 on house 5")
     test_house = 5
     #print(list(df[test_house].columns.values[2:]))
     test_appliance_name = "refrigerator_18"    
-
+    
     test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model2, 
                                                                          test_house, 
                                                                          test_appliance_name, 
                                                                          plot=True)
-
+    
     print("use model 2 on house 6")
     test_house = 6
     #print(list(df[test_house].columns.values[2:]))
-    test_appliance_name = "refrigerator_8"
-
-    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model2,
-                                                                         test_house,
-                                                                         test_appliance_name,
+    test_appliance_name = "refrigerator_8"    
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model2, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
                                                                          plot=True)
 
 
@@ -575,19 +575,19 @@ if __name__ == '__main__':
     print("use model 3 on house 1")
     test_house = 1
     #print(list(df[test_house].columns.values[2:]))
-    test_appliance_name = "refrigerator_5"
-
-    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model3,
-                                                                         test_house,
-                                                                         test_appliance_name,
+    test_appliance_name = "refrigerator_5"    
+     
+    test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model3, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
                                                                          plot=True)
 
-
+    
     print("use model 3 on house 2")
     test_house = 2
     #print(list(df[test_house].columns.values[2:]))
     test_appliance_name = "refrigerator_9"    
-
+     
     test_house_predictions, test_house_mse, test_house_mae = predictions(tree_model3, 
                                                                          test_house, 
                                                                          test_appliance_name, 
