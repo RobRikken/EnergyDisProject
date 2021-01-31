@@ -15,9 +15,11 @@ from sup_learning import fully_connected_network
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 import glob
+from keras.models import load_model
 # environ["CUDA_VISIBLE_DEVICES"] = "0"
 import tensorflow as tf
 from itertools import chain
+from IPython.display import display
 
 
 def load_data_file(path: str):
@@ -201,21 +203,22 @@ def generate_dates(ddata_with_time_index: panda.DataFrame) -> List:
     return sorted(list(set(dates)))
 
 
-def read_merge_data(house, labels):
+
+def read_merge_data(house):
     path = 'data/low_freq/house_{}/'.format(house)
     file = path + 'channel_1.dat'
-    df = panda.read_table(file, sep=' ', names=['unix_time', labels[house][1]],
-                          dtype={'unix_time': 'int64', labels[house][1]: 'float64'})
-
+    df = panda.read_table(file, sep = ' ', names = ['unix_time', labels[house][1]], 
+                                       dtype = {'unix_time': 'int64', labels[house][1]:'float64'}) 
+    
     num_apps = len(glob.glob(path + 'channel*'))
     for i in range(2, num_apps + 1):
         file = path + 'channel_{}.dat'.format(i)
-        data = panda.read_table(file, sep=' ', names=['unix_time', labels[house][i]],
-                                dtype={'unix_time': 'int64', labels[house][i]: 'float64'})
-        df = panda.merge(df, data, how='inner', on='unix_time')
+        data = panda.read_table(file, sep = ' ', names = ['unix_time', labels[house][i]], 
+                                       dtype = {'unix_time': 'int64', labels[house][i]:'float64'})
+        df = panda.merge(df, data, how = 'inner', on = 'unix_time')
     df['timestamp'] = df['unix_time'].astype("datetime64[s]")
     df = df.set_index(df['timestamp'].values)
-    df.drop(['unix_time', 'timestamp'], axis=1, inplace=True)
+    df.drop(['unix_time','timestamp'], axis=1, inplace=True)
     return df
 
 
@@ -293,6 +296,89 @@ def process_multiple_houses_fcnn(houses_to_train_on: List[str]):
     fully_connected_network(x_train.to_numpy(), y_train.to_numpy(), 'house' + combined_house_name, 'refrigerator')
 
 
+
+# def calculate mean square error
+def mse_loss(y_predict, y):
+    return np.mean(np.square(y_predict - y)) 
+# def calculate mean absolute error
+def mae_loss(y_predict, y):
+    return np.mean(np.abs(y_predict - y))
+
+
+
+def plot_each_app(df, dates, predict, y_test, title, look_back = 0):
+    num_date = len(dates)
+    fig, axes = plt.subplots(num_date,1,figsize=(24, num_date*5) )
+    plt.suptitle(title, fontsize = '25')
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.95)
+    for i in range(num_date):
+        if i == 0: l = 0
+        ind = df.loc[dates[i]].index[look_back:]
+        axes.flat[i].plot(ind, y_test[l:l+len(ind)], color = 'blue', alpha = 0.6, label = 'True value')
+        axes.flat[i].plot(ind, predict[l:l+len(ind)], color = 'red', alpha = 0.6, label = 'Predicted value')
+        axes.flat[i].legend()
+        l = len(ind)
+        
+        
+
+def fcnn_run_same_house(model, training_house, appliance, percentage_training_set = 0.7, plot = True):
+# determine test set (i.e. remaining 30% of house 1)
+    df_training_house = df[training_house]
+    df_test = df_training_house[int(len(df_training_house)*0.70):]
+    
+    X_test = df_test[['mains_1','mains_2']].values
+    y_test = df_test[['refrigerator_5']].values
+    
+    # predict
+    y_pred = model.predict(X_test).reshape(-1)
+    
+    # derive mse and mae
+    mse_fc = mse_loss(y_pred, y_test)
+    mae_fc = mae_loss(y_pred, y_test)
+    print('Mean square error on test set: ', mse_fc)
+    print('Mean absolute error on the test set: ', mae_fc)
+    
+    # get dates for plot
+    if plot:
+        dates_test = {}
+        dates_test = [str(time)[:10] for time in df_test.index.values]
+        dates_test = sorted(list(set(dates_test)))
+
+        plot_each_app(df[training_house], dates_test, y_pred, y_test, 
+                      'FC model for refrigerator: train on house 1, predict on house 1')
+    
+    return y_pred, mse_fc, mae_fc
+
+
+
+
+def predictions(model, test_house, appliance, plot = True):
+    
+    # get test data from test house
+    df1_test = df[test_house]
+    X_test = df[test_house][['mains_2','mains_1']].values
+    y_test = df[test_house][appliance].values
+
+    y_pred = model.predict(X_test).reshape(-1)
+    
+    mse_tree = mse_loss(y_pred, y_test)
+    mae_tree = mae_loss(y_pred, y_test)
+    
+    print('Mean square error on test set: ', mse_tree)
+    print('Mean absolute error on the test set: ', mae_tree)
+    
+    if plot == True:
+        dates_test = {}
+        dates_test = [str(time)[:10] for time in df1_test.index.values]
+        dates_test = sorted(list(set(dates_test)))
+        
+        plot_each_app(df1_test, dates_test, y_pred, y_test, 
+                      title= 'Real and predict '+ appliance + ' of house' + str(test_house))
+        
+    return y_pred, mse_tree, mae_tree
+
+
 # ---------------------------
 # main
 # ---------------------------
@@ -322,3 +408,76 @@ if __name__ == '__main__':
 
     process_multiple_houses_fcnn(houses_to_train_on=['1', '2', '3'])
     process_multiple_houses_fcnn(houses_to_train_on=['3', '5', '6'])
+    
+    
+    #### use models to predict signal
+    
+    # get data     
+    labels = read_label()
+    for i in range(1,7):
+        print('House {}: '.format(i), labels[i], '\n')
+    
+    # merge data from channels into one df
+    df = {}
+    for i in range(1,7): # for house 1 and 2
+        df[i] = read_merge_data(i)
+        
+    
+    
+    # model 1: trained on house 1
+    print("MODEL 1")
+    # load model 
+    fcnn_model1 = load_model("models/fully_connected_network/house_1_70_i_522115/refrigerator__5_weights.197-8823.38.hdf5")
+
+    
+    fcnn_predictions, fcnn_mse, fcnn_mae = fcnn_run_same_house(model = fcnn_model1, 
+                                                               training_house = 1, 
+                                                               appliance = 'refrigerator_5')
+    
+    
+    # train on other houses
+    print("use model 1 on house 2")
+    test_house = 2
+    test_appliance_name = "refrigerator_9"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+
+
+    print("use model 1 on house 3")
+    test_house = 3
+    test_appliance_name = "refrigerator_7"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
+    print("use model 1 on house 5")
+    test_house = 5
+    test_appliance_name = "refrigerator_18"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+
+    print("use model 1 on house 6")
+    test_house = 6
+    test_appliance_name = "refrigerator_8"
+    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
+                                                                         test_house, 
+                                                                         test_appliance_name, 
+                                                                         plot=True)
+    
+    
+    
+    
+    
+    
+    
+    
+    
