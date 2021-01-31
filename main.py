@@ -26,6 +26,7 @@ from keras.layers.recurrent import LSTM
 import glob
 # environ["CUDA_VISIBLE_DEVICES"] = "0"
 import tensorflow as tf
+from itertools import chain
 
 
 def load_data_file(path: str):
@@ -479,6 +480,8 @@ def process_multiple_houses_fcnn():
     # House numbers are string because later they are used as a substring to check for.
     houses_to_train_on = ['3', '5', '6']
     combined_mains = {}
+    dates_combined_houses = {}
+    d = []
     for house in house_files:
         # Get the house number for the string and check if it is in the houses to train.
         if house.split('_')[1] in houses_to_train_on:
@@ -504,10 +507,17 @@ def process_multiple_houses_fcnn():
                         left_index=True,
                         right_index=True
                     )
+                    
+            dates_combined_houses = [str(time)[:10] for time in combined_mains[house].index.values]
+            dates_combined_houses = sorted(list(set(dates_combined_houses)))
+            d.append(dates_combined_houses)
 
-    dates = np.unique(combined_mains[house].index.date)
+    d = list(chain.from_iterable(d))
+    d = np.unique(d)
+
+    #dates = np.unique(combined_mains[house].index.date)
     first = True
-    for date in dates:
+    for date in d:
         for house in house_files:
             # Only run the houses that are selected to run, by checking if the number is in the list.
             if house.split('_')[1] in houses_to_train_on:
