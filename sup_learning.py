@@ -9,27 +9,23 @@ Created on Mon Jan 25 09:27:46 2021
 ## supervised learning for energy disaggregation
 ## https://github.com/minhup/Energy-Disaggregation
 
-
 #-------------------------------------
 # import 
 #-------------------------------------
 
 import matplotlib.pyplot as plt
 import warnings
-warnings.filterwarnings("ignore")
 import pathlib
-
 from keras.layers.core import Dense, Activation, Dropout
 from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
+warnings.filterwarnings("ignore")
 
 
 #-------------------------------------
 # function def
 #-------------------------------------
-
-        
 ###------------       
 ### FULLY CONNECTED NEURAL NETWORK
 def build_fc_model(layers):

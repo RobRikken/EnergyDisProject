@@ -12,17 +12,15 @@ import pathlib
 import re
 from multiprocessing import Process, cpu_count, Queue
 from sup_learning import fully_connected_network
-from keras.callbacks import ModelCheckpoint
-from keras.optimizers import Adam
 import glob
 from keras.models import load_model
 # environ["CUDA_VISIBLE_DEVICES"] = "0"
 import tensorflow as tf
 from itertools import chain
-from IPython.display import display
 
-tabeas_path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/'
-#tabeas_path = ''
+#tabeas_path = '/Users/tabearoeber/Library/Mobile Documents/com~apple~CloudDocs/Uni/Utrecht/Semester3/Data Science/ED Project/EnergyDisProject/'
+tabeas_path = ''
+
 
 def load_data_file(path: str):
     return panda.read_csv(
@@ -205,7 +203,6 @@ def generate_dates(ddata_with_time_index: panda.DataFrame) -> List:
     return sorted(list(set(dates)))
 
 
-
 def read_merge_data(house):
     path = tabeas_path + 'data/low_freq/house_{}/'.format(house)
     file = path + 'channel_1.dat'
@@ -298,14 +295,14 @@ def process_multiple_houses_fcnn(houses_to_train_on: List[str]):
     fully_connected_network(x_train.to_numpy(), y_train.to_numpy(), 'house' + combined_house_name, 'refrigerator')
 
 
-
 # def calculate mean square error
 def mse_loss(y_predict, y):
-    return np.mean(np.square(y_predict - y)) 
+    return np.mean(np.square(y_predict - y))
+
+
 # def calculate mean absolute error
 def mae_loss(y_predict, y):
     return np.mean(np.abs(y_predict - y))
-
 
 
 def plot_each_app(df, dates, predict, y_test, title, look_back = 0):
@@ -322,7 +319,6 @@ def plot_each_app(df, dates, predict, y_test, title, look_back = 0):
         axes.flat[i].legend()
         l = len(ind)
         
-
 
 def predictions(model, test_house, appliance, plot = True):
     
@@ -376,113 +372,123 @@ if __name__ == '__main__':
         for house_number in range(1, number_of_houses + 1):
             pathlib.Path(tabeas_path + 'data/converted/house_' + str(house_number)).mkdir(parents=True, exist_ok=True)
             save_house_files('house_' + str(house_number))
-
-    #process_multiple_houses_fcnn(houses_to_train_on=['1', '2', '3'])
-    #process_multiple_houses_fcnn(houses_to_train_on=['3', '5', '6'])
-
-    process_networked_learning()
     
-    #### use models to predict signal
-    
+    # use models to predict signal
     # get data     
     labels = read_label()
-    for i in range(1,7):
+    for i in range(1, 7):
         print('House {}: '.format(i), labels[i], '\n')
     
     # merge data from channels into one df
     df = {}
-    for i in range(1,7): # for house 1 and 2
+    for i in range(1, 7): # for house 1 and 2
         df[i] = read_merge_data(i)
-        
-    
-    
     # model 1: trained on house 1
     print("MODEL 1")
     # load model 
-    fcnn_model1 = load_model(tabeas_path + "models/fully_connected_network/house_1/refrigerator__5_weights.198-8768.96.hdf5")
+    fcnn_model1 = load_model(
+        tabeas_path + "models/fully_connected_network/house_1/refrigerator__5_weights.198-8768.96.hdf5"
+    )
 
-    
     # train on other houses
     print("use model 1 on house 2")
     test_house = 2
     test_appliance_name = "refrigerator_9"
-    
-    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
-                                                                         test_house, 
-                                                                         test_appliance_name, 
-                                                                         plot=True)
 
+    test_house_predictions, test_house_mse, test_house_mae = predictions(
+        fcnn_model1,
+        test_house,
+        test_appliance_name,
+        plot=True
+    )
 
     print("use model 1 on house 3")
     test_house = 3
     test_appliance_name = "refrigerator_7"
     
-    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
-                                                                         test_house, 
-                                                                         test_appliance_name, 
-                                                                         plot=True)
-    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(
+        fcnn_model1,
+        test_house,
+        test_appliance_name,
+        plot=True
+    )
+
     print("use model 1 on house 5")
     test_house = 5
     test_appliance_name = "refrigerator_18"
     
-    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
-                                                                         test_house, 
-                                                                         test_appliance_name, 
-                                                                         plot=True)
+    test_house_predictions, test_house_mse, test_house_mae = predictions(
+        fcnn_model1,
+        test_house,
+        test_appliance_name,
+        plot=True
+    )
 
     print("use model 1 on house 6")
     test_house = 6
     test_appliance_name = "refrigerator_8"
     
-    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model1, 
-                                                                         test_house, 
-                                                                         test_appliance_name,
-                                                                         plot= True)
+    test_house_predictions, test_house_mse, test_house_mae = predictions(
+        fcnn_model1,
+        test_house,
+        test_appliance_name,
+        plot=True
+    )
     
     # model 2: trained on houses 1,2,3
     print("MODEL 2")
-    fcnn_model2 = load_model(tabeas_path + 'models/fully_connected_network/house_1_2_3/refrigerator_weights.198-5262.53.hdf5')
+    fcnn_model2 = load_model(
+        tabeas_path + 'models/fully_connected_network/house_1_2_3/refrigerator_weights.198-5262.53.hdf5'
+    )
     
 
     print("use model 2 on house 5")
     test_house = 5
     test_appliance_name = "refrigerator_18"
     
-    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model2, 
-                                                                         test_house, 
-                                                                         test_appliance_name, 
-                                                                         plot=True)
-    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(
+        fcnn_model2,
+        test_house,
+        test_appliance_name,
+        plot=True
+    )
+
     print("use model 2 on house 6")
     test_house = 6
     test_appliance_name = "refrigerator_8"
-    
-    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model2, 
-                                                                         test_house, 
-                                                                         test_appliance_name, 
-                                                                         plot=True)
+
+    test_house_predictions, test_house_mse, test_house_mae = predictions(
+        fcnn_model2,
+        test_house,
+        test_appliance_name,
+        plot=True
+    )
     
     
     # model 3: trained on houses 3,5,6
     print("MODEL 3")
-    fcnn_model3 = load_model(tabeas_path + "models/fully_connected_network/house_3_5_6/refrigerator_weights.199-7313.56.hdf5")
+    fcnn_model3 = load_model(
+        tabeas_path + "models/fully_connected_network/house_3_5_6/refrigerator_weights.199-7313.56.hdf5"
+    )
     
     print("use model 3 on house 1")
     test_house = 1
     test_appliance_name = "refrigerator_5"
     
-    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model3, 
-                                                                         test_house, 
-                                                                         test_appliance_name, 
-                                                                         plot=True)
+    test_house_predictions, test_house_mse, test_house_mae = predictions(
+        fcnn_model3,
+        test_house,
+        test_appliance_name,
+        plot=True
+    )
     
     print("use model 3 on house 2")
     test_house = 2
     test_appliance_name = "refrigerator_9"
     
-    test_house_predictions, test_house_mse, test_house_mae = predictions(fcnn_model3, 
-                                                                         test_house, 
-                                                                         test_appliance_name, 
-                                                                         plot=True)
-    
+    test_house_predictions, test_house_mse, test_house_mae = predictions(
+        fcnn_model3,
+        test_house,
+        test_appliance_name,
+        plot=True
+    )
