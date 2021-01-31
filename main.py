@@ -5,27 +5,19 @@
 import pandas as panda
 import numpy as np
 from os import walk
-from os import environ
-from typing import Dict
+from typing import Dict, List
 import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq
-import scipy.stats as stats
 import pathlib
-from k_nearest_neigbours import KnnDtw
-from sklearn.metrics import classification_report, confusion_matrix
 import re
-from multiprocessing import Pool, Process, cpu_count, Queue
+from multiprocessing import Process, cpu_count, Queue
 from sup_learning import fully_connected_network
-import pickle
-import time
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
-from keras.layers.core import Dense, Activation, Dropout
-from keras.models import Sequential
-from keras.layers.recurrent import LSTM
 import glob
 # environ["CUDA_VISIBLE_DEVICES"] = "0"
 import tensorflow as tf
+from itertools import chain
 
 
 def load_data_file(path: str):
@@ -68,22 +60,6 @@ def load_house_files() -> Dict:
     return files
 
 
-def build_original_signal(house: str):
-    pickled_series_path = 'data/converted/' + house + '/'
-    (_, __, file_names) = next(walk(pickled_series_path))
-
-    first_iteration = True
-    for file_name in file_names:
-        if first_iteration:
-            original_signal: panda.Series = panda.read_pickle(pickled_series_path + '/' + file_name)
-            first_iteration = False
-        else:
-            single_signal = panda.read_pickle(pickled_series_path + '/' + file_name)
-            original_signal.add(single_signal, fill_value=0.0)
-
-    return original_signal
-
-
 def run_fft(
         raw_signal_data: panda.DataFrame,
         number_of_samples: int = 10,
@@ -121,104 +97,9 @@ def make_fft_plot(
     plt.close()
 
 
-def k_nearest_neighbour(raw_signal_data: np.array, truth_values: np.array, house_name, appliance_name):
-    model = KnnDtw(n_neighbors=5, max_warping_window=10000)
-    model.fit(raw_signal_data, truth_values)
-
-    pickle_file = open('models/k_nearest_neighbour/' + house_name + '_' + appliance_name + '.pkl', 'wb')
-    pickle.dump(model, pickle_file)
-    pickle_file.close()
-
-    return model
-
-
-def report_fit_on_nearest_neighbours(fitted_neighbours: KnnDtw, x_test: panda.Series):
-    # X test data -> raw_signal_data['total_acc_z_test']
-    label, proba = fitted_neighbours.predict(x_test[::10])
-
-    # Y test data
-    classification_report(label, y_test,
-                          target_names=[label for label in labels.values()]
-                          )
-
-    conf_mat = confusion_matrix(label, y_test)
-
-    fig = plt.figure(figsize=(6, 6))
-    width = np.shape(conf_mat)[1]
-    height = np.shape(conf_mat)[0]
-
-    res = plt.imshow(np.array(conf_mat), cmap=plt.cm.summer, interpolation='nearest')
-    for i, row in enumerate(conf_mat):
-        for j, c in enumerate(row):
-            if c > 0:
-                plt.text(j - .2, i + .1, c, fontsize=16)
-
-    cb = fig.colorbar(res)
-    plt.title('Confusion Matrix')
-    _ = plt.xticks(range(6), [l for l in labels.values()], rotation=90)
-    _ = plt.yticks(range(6), [l for l in labels.values()])
-
-
 def fit_distribution_to_label():
     plt.rcParams['figure.figsize'] = (16.0, 12.0)
     plt.style.use('ggplot')
-
-
-# Create models from data
-def best_fit_distribution(data, bins=200, ax=None):
-    """Model data by finding best fit distribution to data"""
-    # Get histogram of original data
-    y, x = np.histogram(data, bins=bins, density=True)
-    x = (x + np.roll(x, -1))[:-1] / 2.0
-
-    size = 30000
-    # x = scipy.arange(size)
-    # y = scipy.int_(scipy.round_(stats.vonmises.rvs(5, size=size) * 47))
-    # h = plt.hist(y, bins=range(48))
-
-    dist_names = ['gamma', 'beta', 'rayleigh', 'norm', 'pareto']
-
-    for dist_name in dist_names:
-        dist = getattr(stats, dist_name)
-        param = dist.fit(y)
-        pdf_fitted = dist.pdf(x, *param[:-2], loc=param[-2], scale=param[-1]) * size
-    #     plt.plot(pdf_fitted, label=dist_name)
-    #     plt.xlim(0, 47)
-    # plt.legend(loc='upper right')
-    # plt.show()
-
-    # Distributions to check
-    DISTRIBUTIONS = [
-        stats.alpha, stats.anglit, stats.arcsine, stats.beta, stats.betaprime, stats.bradford, stats.burr, stats.cauchy,
-        stats.chi, stats.chi2,
-        stats.cosine,
-        stats.dgamma, stats.dweibull, stats.erlang, stats.expon, stats.exponnorm, stats.exponweib, stats.exponpow,
-        stats.f, stats.fatiguelife,
-        stats.fisk,
-        stats.foldcauchy, stats.foldnorm, stats.frechet_r, stats.frechet_l, stats.genlogistic, stats.genpareto,
-        stats.gennorm,
-        stats.genexpon,
-        stats.genextreme, stats.gausshyper, stats.gamma, stats.gengamma, stats.genhalflogistic, stats.gilbrat,
-        stats.gompertz,
-        stats.gumbel_r,
-        stats.gumbel_l, stats.halfcauchy, stats.halflogistic, stats.halfnorm, stats.halfgennorm, stats.hypsecant,
-        stats.invgamma,
-        stats.invgauss,
-        stats.invweibull, stats.johnsonsb, stats.johnsonsu, stats.ksone, stats.kstwobign, stats.laplace, stats.levy,
-        stats.levy_l,
-        stats.levy_stable,
-        stats.logistic, stats.loggamma, stats.loglaplace, stats.lognorm, stats.lomax, stats.maxwell, stats.mielke,
-        stats.nakagami, stats.ncx2,
-        stats.ncf,
-        stats.nct, stats.norm, stats.pareto, stats.pearson3, stats.powerlaw, stats.powerlognorm, stats.powernorm,
-        stats.rdist,
-        stats.reciprocal,
-        stats.rayleigh, stats.rice, stats.recipinvgauss, stats.semicircular, stats.t, stats.triang, stats.truncexpon,
-        stats.truncnorm,
-        stats.tukeylambda,
-        stats.uniform, stats.vonmises, stats.vonmises_line, stats.wald, stats.weibull_min, stats.weibull_max,
-        stats.wrapcauchy
-    ]
 
 
 def execute_network_learning_queue(the_queue: Queue):
@@ -232,22 +113,6 @@ def execute_network_learning_queue(the_queue: Queue):
             training_data['Y_train'],
             training_data['house_name'],
             training_data['appliance_name'],
-        )
-
-    return True
-
-
-def execute_k_nearest_neighbour(the_queue: Queue):
-    while True:
-        if the_queue.empty():
-            break
-
-        training_data = the_queue.get_nowait()
-        k_nearest_neighbour(
-            training_data['X_train'],
-            training_data['Y_train'],
-            training_data['house_name'],
-            training_data['appliance_name']
         )
 
     return True
@@ -294,56 +159,6 @@ def process_networked_learning():
         process.join()
 
 
-def process_k_nearest_neighbours():
-    house_files = load_house_files()
-    processes = []
-    queue = Queue()
-    # Fill the queue
-    for house in house_files:
-        house_files[house]['mains__1'].name = 'mains_1'
-        house_files[house]['mains__2'].name = 'mains_2'
-        combined_mains = panda.concat([house_files[house]['mains__1'], house_files[house]['mains__2']], axis=1)
-        for appliance in house_files[house]:
-            if 'mains' in appliance:
-                continue
-
-            # X_train should be mains, Y_train is applian
-            appliance_series = house_files[house][appliance]
-            selected_signals = panda.merge(appliance_series, combined_mains, how='inner', left_index=True,
-                                           right_index=True)
-            single_main = selected_signals['mains_1'] + selected_signals['mains_2']
-            queue.put({
-                'X_train': single_main.to_numpy(),
-                'Y_train': selected_signals['power'].to_numpy(),
-                'house_name': house,
-                'appliance_name': appliance
-            })
-
-    for process_number in range(number_of_processes):
-        process = Process(target=execute_k_nearest_neighbour, args=(queue,))
-        processes.append(process)
-        process.start()
-
-    for process in processes:
-        process.join()
-
-
-def build_lstm_model(layers):
-    model = Sequential()
-    for i in range(len(layers) - 2):
-        model.add(LSTM(
-            input_dim=layers[i],
-            output_dim=layers[i + 1],
-            # stateful=True,
-            return_sequences=True if i < len(layers) - 3 else False))
-        model.add(Dropout(0.3))
-
-    model.add(Dense(layers[-1]))
-    model.summary()
-
-    return model
-
-
 def fft_all_appliances():
     house_files = load_house_files()
     for house in house_files:
@@ -381,13 +196,9 @@ def process_data(df, dates, x_features, y_features, look_back=50):
     return X, Y
 
 
-def generate_dates():
-    dates = {}
-    for i in range(1, 3):
-        dates[i] = [str(time)[:10] for time in df[i].index.values]
-        dates[i] = sorted(list(set(dates[i])))
-        print('House {0} data contain {1} days from {2} to {3}.'.format(i, len(dates[i]), dates[i][0], dates[i][-1]))
-        print(dates[i], '\n')
+def generate_dates(ddata_with_time_index: panda.DataFrame) -> List:
+    dates = [str(time)[:10] for time in ddata_with_time_index.index.values]
+    return sorted(list(set(dates)))
 
 
 def read_merge_data(house, labels):
@@ -420,65 +231,13 @@ def read_label():
     return label
 
 
-def run_with_gpu():
-    labels = read_label()
-
-    df = {}
-    for i in range(1, 3):
-        df[i] = read_merge_data(i, labels)
-
-    dates = {}
-    for i in range(1, 3):
-        dates[i] = [str(time)[:10] for time in df[i].index.values]
-        dates[i] = sorted(list(set(dates[i])))
-
-    house_files = load_house_files()
-    # Fill the queue
-    for house in house_files:
-        house_files[house]['mains__1'].name = 'mains_1'
-        house_files[house]['mains__2'].name = 'mains_2'
-        combined_mains = panda.concat([house_files[house]['mains__1'], house_files[house]['mains__2']], axis=1)
-        for appliance in house_files[house]:
-            if 'mains' in appliance:
-                continue
-
-            if 'refrigerator' in appliance:
-                model = build_lstm_model([2, 64, 128, 256, 1])
-                start = time.time()
-                adam = Adam(lr=5e-5)
-                model.compile(loss='mean_squared_error', optimizer=adam)
-                checkpointer = ModelCheckpoint(
-                    filepath="models/lstm/lstm_model_" + appliance + ".hdf5",
-                    verbose=0,
-                    save_best_only=True
-                )
-
-                # X_train should be mains, Y_train is applian
-                appliance_series = house_files[house][appliance]
-                selected_signals = panda.merge(appliance_series, combined_mains, how='inner', left_index=True,
-                                               right_index=True)
-                # single_main = selected_signals['mains_1'] + selected_signals['mains_2']
-
-                X_train, y_train = process_data(df[1], dates[1][:17], ['mains_1', 'mains_2'], df[1].columns.values[2:])
-                X_test, y_test = process_data(df[1], dates[1][17:], ['mains_1', 'mains_2'], df[1].columns.values[2:])
-
-                hist_lstm = model.fit(
-                    X_train,
-                    y_train[:, 2],
-                    batch_size=512,
-                    verbose=1,
-                    nb_epoch=200,
-                    validation_split=0.3,
-                    callbacks=[checkpointer])
-                print('Finish trainning. Time: ', time.time() - start)
-
-
-def process_multiple_houses_fcnn():
+def process_multiple_houses_fcnn(houses_to_train_on: List[str]):
     # Now we combine three houses, and make on training set out of them.
     house_files = load_house_files()
     # House numbers are string because later they are used as a substring to check for.
-    houses_to_train_on = ['3', '5', '6']
     combined_mains = {}
+    dates_combined_houses = {}
+    d = []
     for house in house_files:
         # Get the house number for the string and check if it is in the houses to train.
         if house.split('_')[1] in houses_to_train_on:
@@ -505,9 +264,16 @@ def process_multiple_houses_fcnn():
                         right_index=True
                     )
 
-    dates = np.unique(combined_mains[house].index.date)
+            dates_combined_houses = [str(time)[:10] for time in combined_mains[house].index.values]
+            dates_combined_houses = sorted(list(set(dates_combined_houses)))
+            d.append(dates_combined_houses)
+
+    d = list(chain.from_iterable(d))
+    d = np.unique(d)
+
+    #dates = np.unique(combined_mains[house].index.date)
     first = True
-    for date in dates:
+    for date in d:
         for house in house_files:
             # Only run the houses that are selected to run, by checking if the number is in the list.
             if house.split('_')[1] in houses_to_train_on:
@@ -554,4 +320,5 @@ if __name__ == '__main__':
             pathlib.Path('data/converted/house_' + str(house_number)).mkdir(parents=True, exist_ok=True)
             save_house_files('house_' + str(house_number))
 
-    process_networked_learning()
+    process_multiple_houses_fcnn(houses_to_train_on=['1', '2', '3'])
+    process_multiple_houses_fcnn(houses_to_train_on=['3', '5', '6'])
